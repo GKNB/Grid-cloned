@@ -323,6 +323,16 @@ typedef ImprovedStaggeredFermion5D<StaggeredImplR> ImprovedStaggeredFermion5DR;
 typedef ImprovedStaggeredFermion5D<StaggeredImplF> ImprovedStaggeredFermion5DF;
 typedef ImprovedStaggeredFermion5D<StaggeredImplD> ImprovedStaggeredFermion5DD;
 
+
+typedef DomainWallFermion<XconjugateWilsonImplR> XconjugateDomainWallFermionR;
+typedef DomainWallFermion<XconjugateWilsonImplF> XconjugateDomainWallFermionF;
+typedef DomainWallFermion<XconjugateWilsonImplD> XconjugateDomainWallFermionD;
+
+typedef MobiusFermion<XconjugateWilsonImplR> XconjugateMobiusFermionR;
+typedef MobiusFermion<XconjugateWilsonImplF> XconjugateMobiusFermionF;
+typedef MobiusFermion<XconjugateWilsonImplD> XconjugateMobiusFermionD;
+
+
 NAMESPACE_END(Grid);
 
 ////////////////////

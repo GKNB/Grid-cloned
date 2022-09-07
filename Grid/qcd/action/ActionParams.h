@@ -42,6 +42,16 @@ struct GparityWilsonImplParams {
   GparityWilsonImplParams() : twists(Nd, 0) { dirichlet.resize(0); };
 };
   
+struct XconjWilsonImplParams {
+  Coordinate dirichlet; // Blocksize of dirichlet BCs
+  Coordinate twists; //Here the first Nd-1 directions are treated as "spatial", and a twist value of 1 indicates G-parity BCs in that direction. 
+                     //mu=Nd-1 is assumed to be the time direction and a twist value of 1 indicates antiperiodic BCs
+  ComplexD boundary_phase; //+1 for X-conjugate, -1 for Xbar-conjugate, or other
+  XconjWilsonImplParams() : twists(Nd, 0), boundary_phase(1.0) { dirichlet.resize(0); };
+};
+
+
+  
 struct WilsonImplParams {
   bool overlapCommsCompute;
   Coordinate dirichlet; // Blocksize of dirichlet BCs

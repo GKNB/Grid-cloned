@@ -93,6 +93,9 @@ void createTestAlgebra(void)
   std::cout << GridLogMessage << "test GammaT= " << std::endl;
   print(testg[3]);
   testg5 = testg[0]*testg[1]*testg[2]*testg[3];
+  std::cout << GridLogMessage << "test Gamma5= " << std::endl;
+  print(testg5);
+
   
 #define DEFINE_TEST_G(g, exp)\
 testAlgebra[Gamma::Algebra::g]        = exp;\

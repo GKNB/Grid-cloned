@@ -26,7 +26,9 @@ DWF_IMPL_LIST=" \
 	   WilsonImplF \
 	   WilsonImplD \
 	   ZWilsonImplF \
-	   ZWilsonImplD "
+	   ZWilsonImplD \
+           XconjugateWilsonImplF \
+           XconjugateWilsonImplD "
 
 GDWF_IMPL_LIST=" \
 	   GparityWilsonImplF \
