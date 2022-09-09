@@ -457,6 +457,124 @@ void invertXconj1d_matrix(std::vector<FermionField2f> &out, XconjugateMobiusFerm
 }
 
 
+//Use the full 2x2 G-parity Dirac op inverted on a complex source with flavor structure
+// |\phi   0     |
+// | 0    \phi^* |
+void invertGparityComplexSrc(std::vector<FermionField2f> &out, GparityMobiusFermionR &action, ComplexD phi){
+  GridBase* UGrid = action.GaugeGrid();
+  GridBase* FGrid = action.FermionGrid();
+  GridBase* FrbGrid = action.FermionRedBlackGrid();
+
+  ConjugateGradient<FermionField2f> cg(1e-08,10000);
+  SchurRedBlackDiagMooeeSolve<FermionField2f> solver(cg);
+
+  typedef FermionField2f::scalar_object Spinor;
+
+  LatticeInteger tcoor4d(UGrid);
+  LatticeCoordinate(tcoor4d,3);
+
+  FermionField2f tmp4d(UGrid);
+  FermionField2f src4d(UGrid);
+  FermionField2f src5d(FGrid), sol5d(FGrid);
+  FermionField2f src5d_e(FrbGrid), src5d_o(FrbGrid), sol5d_o(FrbGrid);
+
+  out = std::vector<FermionField2f>(24, UGrid);
+
+  for(int f=0;f<2;f++){
+    for(int s=0;s<4;s++){
+      for(int c=0;c<3;c++){
+	Spinor v = Zero();
+	v(f)(s)(c) = f==0 ? phi : conjugate(phi);
+
+	tmp4d = v;
+	src4d = Zero();
+	src4d = where( tcoor4d == Integer(0), tmp4d, src4d); //unit vector on every site on timeslice 0, zero elsewhere
+
+	action.ImportPhysicalFermionSource(src4d, src5d);
+	solver.RedBlackSource(action, src5d, src5d_e, src5d_o);
+	solver.RedBlackSolve(action, src5d_o, sol5d_o);
+	solver.RedBlackSolution(action, sol5d_o, src5d_e, sol5d);
+	action.ExportPhysicalFermionSolution(sol5d, out[c+3*(s + 4*f)]);
+      }
+    }
+  }
+}
+
+//Do the same as the above but with the X-conjugate Dirac op
+void invertXconj1dComplexSrc(std::vector<FermionField2f> &out, XconjugateMobiusFermionR &action, ComplexD phi){
+  GridBase* UGrid = action.GaugeGrid();
+  GridBase* FGrid = action.FermionGrid();
+  GridBase* FrbGrid = action.FermionRedBlackGrid();
+
+  ConjugateGradient<FermionField1f> cg(1e-08,10000);
+  SchurRedBlackDiagMooeeSolve<FermionField1f> solver(cg);
+
+  typedef FermionField1f::scalar_object Spinor;
+
+  LatticeInteger tcoor4d(UGrid);
+  LatticeCoordinate(tcoor4d,3);
+
+  FermionField1f tmp4d(UGrid);
+  FermionField1f src4d(UGrid);
+  FermionField1f src5d(FGrid), sol5d(FGrid);
+  FermionField1f src5d_e(FrbGrid), src5d_o(FrbGrid), sol5d_o(FrbGrid);
+
+  FermionField2f tmp2f(UGrid);
+
+  SCFmatrixField V_4d(UGrid);
+
+  static Gamma C = Gamma(Gamma::Algebra::MinusGammaY) * Gamma(Gamma::Algebra::GammaT);
+  static Gamma g5 = Gamma(Gamma::Algebra::Gamma5);
+  static Gamma X = C*g5;
+  static GparityFlavour sigma1 = GparityFlavour(GparityFlavour::Algebra::SigmaX);
+  
+
+  for(int s=0;s<4;s++){
+    for(int c=0;c<3;c++){
+      Spinor vb = Zero();
+      vb()(s)(c) = phi;
+      
+      Spinor vplus = mulPplusLeft(vb);
+      Spinor vminus = mulPminusLeft(vb);
+
+      Spinor* vpm[2] = {&vplus, &vminus};
+
+      for(int pm=0;pm<2;pm++){
+	tmp4d = *vpm[pm];
+	src4d = Zero();
+	src4d = where( tcoor4d == Integer(0), tmp4d, src4d); //vector on every site on timeslice 0, zero elsewhere
+
+	action.ImportPhysicalFermionSource(src4d, src5d);
+	solver.RedBlackSource(action, src5d, src5d_e, src5d_o);
+	solver.RedBlackSolve(action, src5d_o, sol5d_o);
+	solver.RedBlackSolution(action, sol5d_o, src5d_e, sol5d);
+	action.ExportPhysicalFermionSolution(sol5d, tmp4d);
+
+	//Generate 2f X-conjugate output
+	PokeIndex<GparityFlavourIndex>(tmp2f, tmp4d, 0);
+	tmp4d = -(X*conjugate(tmp4d));
+	PokeIndex<GparityFlavourIndex>(tmp2f, tmp4d, 1);
+
+	pokeSpinColorFlavorColumn(V_4d, tmp2f, s,c,pm);
+      }
+    }
+  }
+
+  SCFmatrixField tmp = mulPplusRight(V_4d) + mulPminusRight(V_4d)*sigma1;  
+  SCFmatrixField Minv = mulURight(tmp);
+
+  out = std::vector<FermionField2f>(24, UGrid);
+
+  for(int fc=0;fc<2;fc++){
+    for(int sc=0;sc<4;sc++){
+      for(int cc=0;cc<3;cc++){
+	int out_idx = cc+3*(sc + 4*fc);
+	peekSpinColorFlavorColumn(out[out_idx], Minv, sc, cc, fc);
+      }
+    }
+  }
+}
+
 
 
 int main (int argc, char ** argv)
@@ -502,35 +620,69 @@ int main (int argc, char ** argv)
   xparams.boundary_phase = -1.0;
   XconjugateMobiusFermionR xbarconj_action(Umu,*FGrid,*FrbGrid,*UGrid,*UrbGrid,mass,M5,mob_b,mob_b-1.,xparams);
 
-  std::vector<FermionField2f> sol_gp;
-  invertGparity(sol_gp, reg_action);
-
-  std::vector<FermionField2f> sol_Xconj2d;
-  invertXconj2d(sol_Xconj2d, reg_action);
-
-  std::vector<FermionField2f> sol_Xconj1d;
-  invertXconj1d(sol_Xconj1d, xconj_action);
-
-  std::vector<FermionField2f> sol_Xconj1d_matrix;
-  invertXconj1d_matrix(sol_Xconj1d_matrix, xconj_action);
-
-
-  
   FermionField2f tmp2f(UGrid);
-
   std::cout.precision(12);
-  for(int fc=0;fc<2;fc++){
-    for(int sc=0;sc<4;sc++){
-      for(int cc=0;cc<3;cc++){
-	int out_idx = cc+3*(sc + 4*fc);
-	tmp2f = sol_gp[out_idx] - sol_Xconj2d[out_idx];
-	RealD nrm2d = norm2(tmp2f);
-	tmp2f = sol_gp[out_idx] - sol_Xconj1d[out_idx];
-	RealD nrm1d = norm2(tmp2f);
-	tmp2f = sol_gp[out_idx] - sol_Xconj1d_matrix[out_idx];
-	RealD nrm1dm = norm2(tmp2f);
 
-	std::cout << fc << " " << sc << " " << cc << " " << nrm2d << " " << nrm1d << " " << nrm1dm << std::endl;
+  {
+    std::cout << "Tests with real source" << std::endl;
+    std::cout << "-------------------------------------------------" << std::endl;
+  
+    std::vector<FermionField2f> sol_gp;
+    invertGparity(sol_gp, reg_action);
+
+    std::vector<FermionField2f> sol_Xconj2d;
+    invertXconj2d(sol_Xconj2d, reg_action);
+
+    std::vector<FermionField2f> sol_Xconj1d;
+    invertXconj1d(sol_Xconj1d, xconj_action);
+
+    std::vector<FermionField2f> sol_Xconj1d_matrix;
+    invertXconj1d_matrix(sol_Xconj1d_matrix, xconj_action);
+
+    std::cout << "Comparisons for real source" << std::endl;
+    for(int fc=0;fc<2;fc++){
+      for(int sc=0;sc<4;sc++){
+	for(int cc=0;cc<3;cc++){
+	  int out_idx = cc+3*(sc + 4*fc);
+	  tmp2f = sol_gp[out_idx] - sol_Xconj2d[out_idx];
+	  RealD nrm2d = norm2(tmp2f);
+	  tmp2f = sol_gp[out_idx] - sol_Xconj1d[out_idx];
+	  RealD nrm1d = norm2(tmp2f);
+	  tmp2f = sol_gp[out_idx] - sol_Xconj1d_matrix[out_idx];
+	  RealD nrm1dm = norm2(tmp2f);
+
+	  std::cout << fc << " " << sc << " " << cc << " " << nrm2d << " " << nrm1d << " " << nrm1dm << std::endl;
+	  assert(nrm2d < 1e-10);
+	  assert(nrm1d < 1e-10);
+	  assert(nrm1dm < 1e-10);
+	}
+      }
+    }
+  }
+
+  {
+    std::cout << "Tests with complex source" << std::endl;
+    std::cout << "-------------------------------------------------" << std::endl;
+  
+    ComplexD phi(1.234,  -6.444); //"random" phase
+
+    std::vector<FermionField2f> sol_gp;
+    invertGparityComplexSrc(sol_gp, reg_action, phi);
+
+    std::vector<FermionField2f> sol_Xconj1d_matrix;
+    invertXconj1dComplexSrc(sol_Xconj1d_matrix, xconj_action, phi);
+
+    std::cout << "Comparisons for complex source" << std::endl;
+    for(int fc=0;fc<2;fc++){
+      for(int sc=0;sc<4;sc++){
+	for(int cc=0;cc<3;cc++){
+	  int out_idx = cc+3*(sc + 4*fc);
+	  tmp2f = sol_gp[out_idx] - sol_Xconj1d_matrix[out_idx];
+	  RealD nrm1dm = norm2(tmp2f);
+
+	  std::cout << fc << " " << sc << " " << cc << nrm1dm << std::endl;
+	  assert(nrm1dm < 1e-10);
+	}
       }
     }
   }
