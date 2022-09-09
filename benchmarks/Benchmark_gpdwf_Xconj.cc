@@ -1,6 +1,6 @@
  /*************************************************************************************
     Grid physics library, www.github.com/paboyle/Grid
-    Source file: ./benchmarks/Benchmark_gparity.cc
+    Source file: ./benchmarks/Benchmark_gpdwf_Xconj.cc
     Copyright (C) 2015
 
     Author: Christopher Kelly <ckelly@bnl.gov>
@@ -26,8 +26,8 @@
 using namespace std;
 using namespace Grid;
 
-typedef typename GparityDomainWallFermionF::FermionField GparityLatticeFermionF;
-typedef typename GparityDomainWallFermionD::FermionField GparityLatticeFermionD;
+typedef typename XconjugateDomainWallFermionF::FermionField LatticeFermionF;
+typedef typename XconjugateDomainWallFermionD::FermionField LatticeFermionD;
 
 int main (int argc, char ** argv)
 {
@@ -71,14 +71,14 @@ int main (int argc, char ** argv)
   GridParallelRNG          RNG5(FGrid);  RNG5.SeedFixedIntegers(seeds5);
   std::cout << GridLogMessage << "Initialised RNGs" << std::endl;
 
-  GparityLatticeFermionF src   (FGrid); random(RNG5,src);
+  LatticeFermionF src   (FGrid); random(RNG5,src);
   RealD N2 = 1.0/::sqrt(norm2(src));
   src = src*N2;
 
-  GparityLatticeFermionF result(FGrid); result=Zero();
-  GparityLatticeFermionF    ref(FGrid);    ref=Zero();
-  GparityLatticeFermionF    tmp(FGrid);
-  GparityLatticeFermionF    err(FGrid);
+  LatticeFermionF result(FGrid); result=Zero();
+  LatticeFermionF    ref(FGrid);    ref=Zero();
+  LatticeFermionF    tmp(FGrid);
+  LatticeFermionF    err(FGrid);
 
   std::cout << GridLogMessage << "Drawing gauge field" << std::endl;
   LatticeGaugeFieldF Umu(UGrid); 
@@ -95,7 +95,7 @@ int main (int argc, char ** argv)
   std::cout << GridLogMessage<< "* Kernel options --dslash-generic, --dslash-unroll, --dslash-asm" <<std::endl;
   std::cout << GridLogMessage<< "*****************************************************************" <<std::endl;
   std::cout << GridLogMessage<< "*****************************************************************" <<std::endl;
-  std::cout << GridLogMessage<< "* Benchmarking GparityDomainWallFermion::Dhop                  "<<std::endl;
+  std::cout << GridLogMessage<< "* Benchmarking XconjugateDomainWallFermion::Dhop                  "<<std::endl;
   std::cout << GridLogMessage<< "* Vectorising space-time by "<<vComplexF::Nsimd()<<std::endl;
 #ifdef GRID_OMP
   if ( WilsonKernelsStatic::Comms == WilsonKernelsStatic::CommsAndCompute ) std::cout << GridLogMessage<< "* Using Overlapped Comms/Compute" <<std::endl;
@@ -106,11 +106,16 @@ int main (int argc, char ** argv)
   if ( WilsonKernelsStatic::Opt == WilsonKernelsStatic::OptInlineAsm ) std::cout << GridLogMessage<< "* Using Asm Nc=3   WilsonKernels" <<std::endl;
   std::cout << GridLogMessage<< "*****************************************************************" <<std::endl;
 
+  std::vector<int> twists({1,1,1,0});
+  XconjugateDomainWallFermionF::ImplParams xparams;
+  xparams.twists = twists;
+  xparams.boundary_phase = 1.0;
+
   int ncall =1000;
   
   if(do_fp32){
     std::cout << GridLogMessage<< "* SINGLE/SINGLE"<<std::endl;
-    GparityDomainWallFermionF Dw(Umu,*FGrid,*FrbGrid,*UGrid,*UrbGrid,mass,M5);
+    XconjugateDomainWallFermionF Dw(Umu,*FGrid,*FrbGrid,*UGrid,*UrbGrid,mass,M5,xparams);
     FGrid->Barrier();
     Dw.Dhop(src,result,0);
     std::cout<<GridLogMessage<<"Called warmup"<<std::endl;
@@ -122,7 +127,7 @@ int main (int argc, char ** argv)
     FGrid->Barrier();
     
     double volume=Ls;  for(int mu=0;mu<Nd;mu++) volume=volume*latt4[mu];
-    double flops=2*1320*volume*ncall;
+    double flops=1320*volume*ncall;
 
     std::cout<<GridLogMessage << "Called Dw "<<ncall<<" times in "<<t1-t0<<" us"<<std::endl;
     std::cout<<GridLogMessage << "mflop/s =   "<< flops/(t1-t0)<<std::endl;
@@ -137,15 +142,15 @@ int main (int argc, char ** argv)
     GridRedBlackCartesian * FrbGrid_d = SpaceTimeGrid::makeFiveDimRedBlackGrid(Ls,UGrid_d);
 
     std::cout << GridLogMessage<< "* DOUBLE/DOUBLE"<<std::endl;
-    GparityLatticeFermionD src_d(FGrid_d);
+    LatticeFermionD src_d(FGrid_d);
     precisionChange(src_d,src);
     
     LatticeGaugeFieldD Umu_d(UGrid_d); 
     precisionChange(Umu_d,Umu);
     
-    GparityLatticeFermionD result_d(FGrid_d);
+    LatticeFermionD result_d(FGrid_d);
 
-    GparityDomainWallFermionD DwD(Umu_d,*FGrid_d,*FrbGrid_d,*UGrid_d,*UrbGrid_d,mass,M5);
+    XconjugateDomainWallFermionD DwD(Umu_d,*FGrid_d,*FrbGrid_d,*UGrid_d,*UrbGrid_d,mass,M5,xparams);
     FGrid_d->Barrier();
     DwD.Dhop(src_d,result_d,0);
     std::cout<<GridLogMessage<<"Called warmup"<<std::endl;
@@ -157,7 +162,7 @@ int main (int argc, char ** argv)
     FGrid_d->Barrier();
       
     double volume=Ls;  for(int mu=0;mu<Nd;mu++) volume=volume*latt4[mu];
-    double flops=2*1320*volume*ncall;
+    double flops=1320*volume*ncall;
       
     std::cout<<GridLogMessage << "Called Dw "<<ncall<<" times in "<<t1-t0<<" us"<<std::endl;
     std::cout<<GridLogMessage << "mflop/s =   "<< flops/(t1-t0)<<std::endl;
@@ -168,4 +173,3 @@ int main (int argc, char ** argv)
 #endif
   Grid_finalize();
 }
-
