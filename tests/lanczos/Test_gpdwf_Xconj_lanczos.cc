@@ -7,11 +7,11 @@ using namespace Grid;
 //#include "cheby_hack.h"
 template<typename OneFlavorFermionField>
 inline ComplexD innerProductXconjugate(const OneFlavorFermionField &a, const OneFlavorFermionField &b){
-  return 2.*std::real(innerProduct(a,b));
+  return 2.*real(innerProduct(a,b));
 }
 template<typename OneFlavorFermionField>
 inline RealD norm2Xconjugate(const OneFlavorFermionField &a){
-  return 2.*std::real(innerProduct(a,a));
+  return 2.*real(innerProduct(a,a));
 }
 template<class OneFlavorFermionField>
 void basisOrthogonalizeXconjugate(std::vector<OneFlavorFermionField> &basis,OneFlavorFermionField &w,int k) 
@@ -37,7 +37,7 @@ class innerProductImplementationXconjugate : public innerProductImplementation<F
 public:
   ComplexD innerProduct(const Field &a, const Field &b) override{ return innerProductXconjugate(a,b); }
   RealD norm2(const Field &a) override{ return norm2Xconjugate(a); }
-  void basisOrthogonalize(std::vector<Field> &basis,Field &w,int k){ basisOrthogonalizeXconjugate(basis,w,k); }
+  void basisOrthogonalize(std::vector<Field> &basis,Field &w,int k) override{ basisOrthogonalizeXconjugate(basis,w,k); }
 };
 
 
@@ -802,10 +802,10 @@ int main (int argc, char ** argv)
 
   //Defaults
   int Nstop = 30;
-  int Nk = 40;
-  int Np = 40;
-  int ord = 41;
-  RealD lo = 0.55;
+  int Nk = 30;
+  int Np = 5;
+  int ord = 81;
+  RealD lo = 10.0;
   RealD hi = 88.0;
   
   //User override

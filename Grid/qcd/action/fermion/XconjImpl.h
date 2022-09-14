@@ -69,9 +69,7 @@ public:
 					  StencilEntry *SE,
 					  StencilView &St) 
   {
-    static Gamma C = Gamma(Gamma::Algebra::MinusGammaY) * Gamma(Gamma::Algebra::GammaT);
-    static Gamma g5 = Gamma(Gamma::Algebra::Gamma5);
-    static Gamma X = C*g5;
+    Gamma X = Gamma(Gamma::Algebra::MinusSigmaXZ);
     typedef decltype(coalescedRead( *( (SiteSpinor*)NULL ) )) _FullSpinor;
 
     int direction = St._directions[mu];

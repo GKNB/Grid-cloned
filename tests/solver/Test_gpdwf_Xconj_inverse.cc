@@ -581,6 +581,15 @@ int main (int argc, char ** argv)
 {
   Grid_init(&argc,&argv);
 
+  RealD tol = 1e-10;
+  for(int i=1;i<argc;i++){
+    std::string sarg(argv[i]);
+    if(sarg == "-tol"){
+      std::stringstream ss; ss << argv[i+1]; ss >> tol;
+      std::cout << "Set tolerance to " << tol << std::endl;
+    }
+  }
+  
   const int Ls=4;
 
   GridCartesian         * UGrid   = SpaceTimeGrid::makeFourDimGrid(GridDefaultLatt(), GridDefaultSimd(Nd,vComplex::Nsimd()),GridDefaultMpi());
@@ -652,9 +661,9 @@ int main (int argc, char ** argv)
 	  RealD nrm1dm = norm2(tmp2f);
 
 	  std::cout << fc << " " << sc << " " << cc << " " << nrm2d << " " << nrm1d << " " << nrm1dm << std::endl;
-	  assert(nrm2d < 1e-10);
-	  assert(nrm1d < 1e-10);
-	  assert(nrm1dm < 1e-10);
+	  assert(nrm2d < tol);
+	  assert(nrm1d < tol);
+	  assert(nrm1dm < tol);
 	}
       }
     }
@@ -680,8 +689,8 @@ int main (int argc, char ** argv)
 	  tmp2f = sol_gp[out_idx] - sol_Xconj1d_matrix[out_idx];
 	  RealD nrm1dm = norm2(tmp2f);
 
-	  std::cout << fc << " " << sc << " " << cc << nrm1dm << std::endl;
-	  assert(nrm1dm < 1e-10);
+	  std::cout << fc << " " << sc << " " << cc << " " << nrm1dm << std::endl;
+	  assert(nrm1dm < tol);
 	}
       }
     }
