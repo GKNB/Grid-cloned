@@ -332,6 +332,9 @@ typedef MobiusFermion<XconjugateWilsonImplR> XconjugateMobiusFermionR;
 typedef MobiusFermion<XconjugateWilsonImplF> XconjugateMobiusFermionF;
 typedef MobiusFermion<XconjugateWilsonImplD> XconjugateMobiusFermionD;
 
+typedef MobiusEOFAFermion<XconjugateWilsonImplR> XconjugateMobiusEOFAFermionR;
+typedef MobiusEOFAFermion<XconjugateWilsonImplF> XconjugateMobiusEOFAFermionF;
+typedef MobiusEOFAFermion<XconjugateWilsonImplD> XconjugateMobiusEOFAFermionD;
 
 NAMESPACE_END(Grid);
 

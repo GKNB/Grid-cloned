@@ -281,6 +281,23 @@ void checkChargeConjMatrix(){
   std::cout << GridLogMessage << "C \\gamma^5 = \\gamma^5 C";
   test(Cg5, g5C);
   std::cout << std::endl;
+
+
+  static Gamma C_op = Gamma(Gamma::Algebra::MinusGammaY) * Gamma(Gamma::Algebra::GammaT);
+  static Gamma g5_op = Gamma(Gamma::Algebra::Gamma5);
+  static Gamma X_op = C_op*g5_op;
+
+  SpinMatrix X = C*testAlgebra[Gamma::Algebra::Gamma5];
+  SpinMatrix X_from_op = X_op * one;
+  std::cout << GridLogMessage << "X = C \\gamma^5";
+  test(X, X_from_op);
+  std::cout << std::endl;
+  
+  static Gamma X_op2 = Gamma(Gamma::Algebra::MinusSigmaXZ);
+  X_from_op = X_op2 * one;
+  std::cout << GridLogMessage << "X = -\\sigma_XZ";
+  test(X, X_from_op);
+  std::cout << std::endl;
 }
 
 

@@ -87,6 +87,11 @@ NAMESPACE_BEGIN(Grid);
 	return sstream.str();
       } 
 
+      //Set the pseudofermion Phi field for testing or other purposes
+      void setPhi(const FermionField &phi_in){
+	pickCheckerboard(Even,PhiEven,phi_in);
+	pickCheckerboard(Odd,PhiOdd,phi_in);
+      }
       
       const FermionField &getPhiOdd() const{ return PhiOdd; }
 
