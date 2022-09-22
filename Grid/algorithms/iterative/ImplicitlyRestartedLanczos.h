@@ -40,6 +40,33 @@ NAMESPACE_BEGIN(Grid);
 /////////////////////////////////////////////////////////////
 // Implicitly restarted lanczos
 /////////////////////////////////////////////////////////////
+
+//This class allows the generalization of the inner product in the Lanczos
+template<typename Field>
+class innerProductImplementation{
+public:
+  virtual ComplexD innerProduct(const Field &a, const Field &b){ return Grid::innerProduct(a,b); }
+  virtual RealD norm2(const Field &a){ return Grid::norm2(a); }
+  virtual void basisOrthogonalize(std::vector<Field> &basis,Field &w,int k){ Grid::basisOrthogonalize(basis,w,k); }
+  
+  //The default implementation
+  static innerProductImplementation<Field> & defaultImpl(){ static innerProductImplementation<Field> impl; return impl; }
+};
+
+//Implementation for X-conjugate (G-parity) Dirac operator
+template<typename Field>
+class innerProductImplementationXconjugate : public innerProductImplementation<Field>{
+public:
+  ComplexD innerProduct(const Field &a, const Field &b) override{ return 2.*real(Grid::innerProduct(a,b)); }
+  RealD norm2(const Field &a) override{ return 2.*real(Grid::innerProduct(a,a)); }
+  void basisOrthogonalize(std::vector<Field> &basis,Field &w,int k) override{ 
+    for(int j=0; j<k; ++j){
+      auto ip = this->innerProduct(basis[j],w);
+      w = w - ip*basis[j];
+    }
+  }
+};
+
 template<class Field> class ImplicitlyRestartedLanczosTester 
 {
  public:
@@ -56,9 +83,13 @@ enum IRLdiagonalisation {
 template<class Field> class ImplicitlyRestartedLanczosHermOpTester  : public ImplicitlyRestartedLanczosTester<Field>
 {
  public:
-
+  innerProductImplementation<Field> &_innerProdImpl;
   LinearFunction<Field>       &_HermOp;
-  ImplicitlyRestartedLanczosHermOpTester(LinearFunction<Field> &HermOp) : _HermOp(HermOp)  {  };
+
+  ImplicitlyRestartedLanczosHermOpTester(LinearFunction<Field> &HermOp, 
+					 innerProductImplementation<Field> &innerProdImpl = innerProductImplementation<Field>::defaultImpl() 
+					 ) : _HermOp(HermOp), _innerProdImpl(innerProdImpl)  {  };
+
   int ReconstructEval(int j,RealD resid,Field &B, RealD &eval,RealD evalMaxApprox)
   {
     return TestConvergence(j,resid,B,eval,evalMaxApprox);
@@ -70,13 +101,13 @@ template<class Field> class ImplicitlyRestartedLanczosHermOpTester  : public Imp
     // Apply operator
     _HermOp(B,v);
 
-    RealD vnum = real(innerProduct(B,v)); // HermOp.
-    RealD vden = norm2(B);
-    RealD vv0  = norm2(v);
+    RealD vnum = real(_innerProdImpl.innerProduct(B,v)); // HermOp.
+    RealD vden = _innerProdImpl.norm2(B);
+    RealD vv0  = _innerProdImpl.norm2(v);
     eval   = vnum/vden;
     v -= eval*B;
 
-    RealD vv = norm2(v) / ::pow(evalMaxApprox,2.0);
+    RealD vv = _innerProdImpl.norm2(v) / ::pow(evalMaxApprox,2.0);
 
     std::cout.precision(13);
     std::cout<<GridLogIRL  << "[" << std::setw(3)<<j<<"] "
@@ -93,7 +124,7 @@ template<class Field> class ImplicitlyRestartedLanczosHermOpTester  : public Imp
 
 template<class Field> 
 class ImplicitlyRestartedLanczos {
- private:
+private:
   const RealD small = 1.0e-8;
   int MaxIter;
   int MinRestart; // Minimum number of restarts; only check for convergence after
@@ -114,6 +145,8 @@ class ImplicitlyRestartedLanczos {
   ImplicitlyRestartedLanczosTester<Field> &_Tester;
   // Default tester provided (we need a ref to something in default case)
   ImplicitlyRestartedLanczosHermOpTester<Field> SimpleTester;
+
+  innerProductImplementation<Field> &_innerProdImpl;
   /////////////////////////
   // Constructor
   /////////////////////////
@@ -137,34 +170,35 @@ public:
   // HermOp could be eliminated if we dropped the Power method for max eval.
   // -- also: The eval, eval2, eval2_copy stuff is still unnecessarily unclear
   //////////////////////////////////////////////////////////////////
- ImplicitlyRestartedLanczos(LinearFunction<Field> & PolyOp,
-			    LinearFunction<Field> & HermOp,
-			    ImplicitlyRestartedLanczosTester<Field> & Tester,
-			    int _Nstop, // sought vecs
-			    int _Nk, // sought vecs
-			    int _Nm, // spare vecs
-			    RealD _eresid, // resid in lmdue deficit 
-			    int _MaxIter, // Max iterations
-			    RealD _betastp=0.0, // if beta(k) < betastp: converged
-			    int _MinRestart=0, int _orth_period = 1,
-			    IRLdiagonalisation _diagonalisation= IRLdiagonaliseWithEigen) :
-    SimpleTester(HermOp), _PolyOp(PolyOp),      _HermOp(HermOp), _Tester(Tester),
+  ImplicitlyRestartedLanczos(LinearFunction<Field> & PolyOp,
+			     LinearFunction<Field> & HermOp,
+			     ImplicitlyRestartedLanczosTester<Field> & Tester,
+			     innerProductImplementation<Field> &innerProdImpl,
+			     int _Nstop, // sought vecs
+			     int _Nk, // sought vecs
+			     int _Nm, // spare vecs
+			     RealD _eresid, // resid in lmdue deficit 
+			     int _MaxIter, // Max iterations
+			     RealD _betastp=0.0, // if beta(k) < betastp: converged
+			     int _MinRestart=0, int _orth_period = 1,
+			     IRLdiagonalisation _diagonalisation= IRLdiagonaliseWithEigen) :
+    SimpleTester(HermOp), _PolyOp(PolyOp),      _HermOp(HermOp), _Tester(Tester), _innerProdImpl(innerProdImpl),
     Nstop(_Nstop)  ,      Nk(_Nk),      Nm(_Nm),
     eresid(_eresid),      betastp(_betastp),
     MaxIter(_MaxIter)  ,      MinRestart(_MinRestart),
     orth_period(_orth_period), diagonalisation(_diagonalisation)  { };
 
-    ImplicitlyRestartedLanczos(LinearFunction<Field> & PolyOp,
-			       LinearFunction<Field> & HermOp,
-			       int _Nstop, // sought vecs
-			       int _Nk, // sought vecs
-			       int _Nm, // spare vecs
-			       RealD _eresid, // resid in lmdue deficit 
-			       int _MaxIter, // Max iterations
-			       RealD _betastp=0.0, // if beta(k) < betastp: converged
-			       int _MinRestart=0, int _orth_period = 1,
-			       IRLdiagonalisation _diagonalisation= IRLdiagonaliseWithEigen) :
-    SimpleTester(HermOp),  _PolyOp(PolyOp),      _HermOp(HermOp), _Tester(SimpleTester),
+  ImplicitlyRestartedLanczos(LinearFunction<Field> & PolyOp,
+			     LinearFunction<Field> & HermOp,
+			     int _Nstop, // sought vecs
+			     int _Nk, // sought vecs
+			     int _Nm, // spare vecs
+			     RealD _eresid, // resid in lmdue deficit 
+			     int _MaxIter, // Max iterations
+			     RealD _betastp=0.0, // if beta(k) < betastp: converged
+			     int _MinRestart=0, int _orth_period = 1,
+			     IRLdiagonalisation _diagonalisation= IRLdiagonaliseWithEigen) :
+    SimpleTester(HermOp),  _PolyOp(PolyOp),      _HermOp(HermOp), _Tester(SimpleTester), _innerProdImpl(innerProductImplementation<Field>::defaultImpl()), 
     Nstop(_Nstop)  ,      Nk(_Nk),      Nm(_Nm),
     eresid(_eresid),      betastp(_betastp),
     MaxIter(_MaxIter)  ,      MinRestart(_MinRestart),
@@ -173,9 +207,9 @@ public:
   ////////////////////////////////
   // Helpers
   ////////////////////////////////
-  template<typename T>  static RealD normalise(T& v) 
+  RealD normalise(Field& v) const
   {
-    RealD nn = norm2(v);
+    RealD nn = _innerProdImpl.norm2(v);
     nn = std::sqrt(nn);
     v = v * (1.0/nn);
     return nn;
@@ -184,28 +218,28 @@ public:
   void orthogonalize(Field& w, std::vector<Field>& evec,int k)
   {
     OrthoTime-=usecond()/1e6;
-    basisOrthogonalize(evec,w,k);
+    _innerProdImpl.basisOrthogonalize(evec,w,k);
     normalise(w);
     OrthoTime+=usecond()/1e6;
   }
 
-/* Rudy Arthur's thesis pp.137
-------------------------
-Require: M > K P = M − K †
-Compute the factorization AVM = VM HM + fM eM 
-repeat
-  Q=I
-  for i = 1,...,P do
-    QiRi =HM −θiI Q = QQi
-    H M = Q †i H M Q i
-  end for
-  βK =HM(K+1,K) σK =Q(M,K)
-  r=vK+1βK +rσK
-  VK =VM(1:M)Q(1:M,1:K)
-  HK =HM(1:K,1:K)
-  →AVK =VKHK +fKe†K † Extend to an M = K + P step factorization AVM = VMHM + fMeM
-until convergence
-*/
+  /* Rudy Arthur's thesis pp.137
+     ------------------------
+     Require: M > K P = M − K †
+     Compute the factorization AVM = VM HM + fM eM 
+     repeat
+     Q=I
+     for i = 1,...,P do
+     QiRi =HM −θiI Q = QQi
+     H M = Q †i H M Q i
+     end for
+     βK =HM(K+1,K) σK =Q(M,K)
+     r=vK+1βK +rσK
+     VK =VM(1:M)Q(1:M,1:K)
+     HK =HM(1:K,1:K)
+     →AVK =VKHK +fKe†K † Extend to an M = K + P step factorization AVM = VMHM + fMeM
+     until convergence
+  */
   void calc(std::vector<RealD>& eval, std::vector<Field>& evec,  const Field& src, int& Nconv, bool reverse=false)
   {
     GridBase *grid = src.Grid();
@@ -236,15 +270,15 @@ until convergence
     {
       auto src_n = src;
       auto tmp = src;
-      std::cout << GridLogIRL << " IRL source norm " << norm2(src) << std::endl;
+      std::cout << GridLogIRL << " IRL source norm " << _innerProdImpl.norm2(src) << std::endl;
       const int _MAX_ITER_IRL_MEVAPP_ = 50;
       for (int i=0;i<_MAX_ITER_IRL_MEVAPP_;i++) {
 	normalise(src_n);
 	_HermOp(src_n,tmp);
 	//	std::cout << GridLogMessage<< tmp<<std::endl; exit(0);
 	//	std::cout << GridLogIRL << " _HermOp " << norm2(tmp) << std::endl;
-	RealD vnum = real(innerProduct(src_n,tmp)); // HermOp.
-	RealD vden = norm2(src_n);
+	RealD vnum = real(_innerProdImpl.innerProduct(src_n,tmp)); // HermOp.
+	RealD vden = _innerProdImpl.norm2(src_n);
 	RealD na = vnum/vden;
 	if (fabs(evalMaxApprox/na - 1.0) < 0.0001)
 	  i=_MAX_ITER_IRL_MEVAPP_;
@@ -343,7 +377,7 @@ until convergence
       ////////////////////////////////////////////////////
       f *= Qt(k2-1,Nm-1);
       f += lme[k2-1] * evec[k2];
-      beta_k = norm2(f);
+      beta_k = _innerProdImpl.norm2(f);
       beta_k = std::sqrt(beta_k);
       std::cout<<GridLogIRL<<" beta(k) = "<<beta_k<<std::endl;
 	  
@@ -440,17 +474,17 @@ until convergence
     std::cout << GridLogIRL <<"**************************************************************************"<< std::endl;
   }
 
- private:
-/* Saad PP. 195
-1. Choose an initial vector v1 of 2-norm unity. Set β1 ≡ 0, v0 ≡ 0
-2. For k = 1,2,...,m Do:
-3. wk:=Avk - b_k v_{k-1}      
-4. ak:=(wk,vk)       // 
-5. wk:=wk-akvk       // wk orthog vk 
-6. bk+1 := ||wk||_2. If b_k+1 = 0 then Stop
-7. vk+1 := wk/b_k+1
-8. EndDo
- */
+private:
+  /* Saad PP. 195
+     1. Choose an initial vector v1 of 2-norm unity. Set β1 ≡ 0, v0 ≡ 0
+     2. For k = 1,2,...,m Do:
+     3. wk:=Avk - b_k v_{k-1}      
+     4. ak:=(wk,vk)       // 
+     5. wk:=wk-akvk       // wk orthog vk 
+     6. bk+1 := ||wk||_2. If b_k+1 = 0 then Stop
+     7. vk+1 := wk/b_k+1
+     8. EndDo
+  */
   void step(std::vector<RealD>& lmd,
 	    std::vector<RealD>& lme, 
 	    std::vector<Field>& evec,
@@ -468,7 +502,7 @@ until convergence
 
     if(k>0) w -= lme[k-1] * evec[k-1];
 
-    ComplexD zalph = innerProduct(evec_k,w);
+    ComplexD zalph = _innerProdImpl.innerProduct(evec_k,w);
     RealD     alph = real(zalph);
 
     w = w - alph * evec_k;
@@ -597,140 +631,142 @@ until convergence
   }
 
 #ifdef USE_LAPACK
-void LAPACK_dstegr(char *jobz, char *range, int *n, double *d, double *e,
-                   double *vl, double *vu, int *il, int *iu, double *abstol,
-                   int *m, double *w, double *z, int *ldz, int *isuppz,
-                   double *work, int *lwork, int *iwork, int *liwork,
-                   int *info);
+  void LAPACK_dstegr(char *jobz, char *range, int *n, double *d, double *e,
+		     double *vl, double *vu, int *il, int *iu, double *abstol,
+		     int *m, double *w, double *z, int *ldz, int *isuppz,
+		     double *work, int *lwork, int *iwork, int *liwork,
+		     int *info);
 #endif
 
-void diagonalize_lapack(std::vector<RealD>& lmd,
-			std::vector<RealD>& lme, 
-			int Nk, int Nm,  
-			Eigen::MatrixXd& Qt,
-			GridBase *grid)
-{
+  void diagonalize_lapack(std::vector<RealD>& lmd,
+			  std::vector<RealD>& lme, 
+			  int Nk, int Nm,  
+			  Eigen::MatrixXd& Qt,
+			  GridBase *grid)
+  {
 #ifdef USE_LAPACK
-  const int size = Nm;
-  int NN = Nk;
-  double evals_tmp[NN];
-  double evec_tmp[NN][NN];
-  memset(evec_tmp[0],0,sizeof(double)*NN*NN);
-  double DD[NN];
-  double EE[NN];
-  for (int i = 0; i< NN; i++) {
-    for (int j = i - 1; j <= i + 1; j++) {
-      if ( j < NN && j >= 0 ) {
-	if (i==j) DD[i] = lmd[i];
-	if (i==j) evals_tmp[i] = lmd[i];
-	if (j==(i-1)) EE[j] = lme[j];
-      }
-    }
-  }
-  int evals_found;
-  int lwork = ( (18*NN) > (1+4*NN+NN*NN)? (18*NN):(1+4*NN+NN*NN)) ;
-  int liwork =  3+NN*10 ;
-  int iwork[liwork];
-  double work[lwork];
-  int isuppz[2*NN];
-  char jobz = 'V'; // calculate evals & evecs
-  char range = 'I'; // calculate all evals
-  //    char range = 'A'; // calculate all evals
-  char uplo = 'U'; // refer to upper half of original matrix
-  char compz = 'I'; // Compute eigenvectors of tridiagonal matrix
-  int ifail[NN];
-  int info;
-  int total = grid->_Nprocessors;
-  int node  = grid->_processor;
-  int interval = (NN/total)+1;
-  double vl = 0.0, vu = 0.0;
-  int il = interval*node+1 , iu = interval*(node+1);
-  if (iu > NN)  iu=NN;
-  double tol = 0.0;
-  if (1) {
-    memset(evals_tmp,0,sizeof(double)*NN);
-    if ( il <= NN){
-      LAPACK_dstegr(&jobz, &range, &NN,
-		    (double*)DD, (double*)EE,
-		    &vl, &vu, &il, &iu, // these four are ignored if second parameteris 'A'
-		    &tol, // tolerance
-		    &evals_found, evals_tmp, (double*)evec_tmp, &NN,
-		    isuppz,
-		    work, &lwork, iwork, &liwork,
-		    &info);
-      for (int i = iu-1; i>= il-1; i--){
-	evals_tmp[i] = evals_tmp[i - (il-1)];
-	if (il>1) evals_tmp[i-(il-1)]=0.;
-	for (int j = 0; j< NN; j++){
-	  evec_tmp[i][j] = evec_tmp[i - (il-1)][j];
-	  if (il>1) evec_tmp[i-(il-1)][j]=0.;
+    const int size = Nm;
+    int NN = Nk;
+    double evals_tmp[NN];
+    double evec_tmp[NN][NN];
+    memset(evec_tmp[0],0,sizeof(double)*NN*NN);
+    double DD[NN];
+    double EE[NN];
+    for (int i = 0; i< NN; i++) {
+      for (int j = i - 1; j <= i + 1; j++) {
+	if ( j < NN && j >= 0 ) {
+	  if (i==j) DD[i] = lmd[i];
+	  if (i==j) evals_tmp[i] = lmd[i];
+	  if (j==(i-1)) EE[j] = lme[j];
 	}
       }
     }
-    {
-      grid->GlobalSumVector(evals_tmp,NN);
-      grid->GlobalSumVector((double*)evec_tmp,NN*NN);
+    int evals_found;
+    int lwork = ( (18*NN) > (1+4*NN+NN*NN)? (18*NN):(1+4*NN+NN*NN)) ;
+    int liwork =  3+NN*10 ;
+    int iwork[liwork];
+    double work[lwork];
+    int isuppz[2*NN];
+    char jobz = 'V'; // calculate evals & evecs
+    char range = 'I'; // calculate all evals
+    //    char range = 'A'; // calculate all evals
+    char uplo = 'U'; // refer to upper half of original matrix
+    char compz = 'I'; // Compute eigenvectors of tridiagonal matrix
+    int ifail[NN];
+    int info;
+    int total = grid->_Nprocessors;
+    int node  = grid->_processor;
+    int interval = (NN/total)+1;
+    double vl = 0.0, vu = 0.0;
+    int il = interval*node+1 , iu = interval*(node+1);
+    if (iu > NN)  iu=NN;
+    double tol = 0.0;
+    if (1) {
+      memset(evals_tmp,0,sizeof(double)*NN);
+      if ( il <= NN){
+	LAPACK_dstegr(&jobz, &range, &NN,
+		      (double*)DD, (double*)EE,
+		      &vl, &vu, &il, &iu, // these four are ignored if second parameteris 'A'
+		      &tol, // tolerance
+		      &evals_found, evals_tmp, (double*)evec_tmp, &NN,
+		      isuppz,
+		      work, &lwork, iwork, &liwork,
+		      &info);
+	for (int i = iu-1; i>= il-1; i--){
+	  evals_tmp[i] = evals_tmp[i - (il-1)];
+	  if (il>1) evals_tmp[i-(il-1)]=0.;
+	  for (int j = 0; j< NN; j++){
+	    evec_tmp[i][j] = evec_tmp[i - (il-1)][j];
+	    if (il>1) evec_tmp[i-(il-1)][j]=0.;
+	  }
+	}
+      }
+      {
+	grid->GlobalSumVector(evals_tmp,NN);
+	grid->GlobalSumVector((double*)evec_tmp,NN*NN);
+      }
+    } 
+    // Safer to sort instead of just reversing it, 
+    // but the document of the routine says evals are sorted in increasing order. 
+    // qr gives evals in decreasing order.
+    for(int i=0;i<NN;i++){
+      lmd [NN-1-i]=evals_tmp[i];
+      for(int j=0;j<NN;j++){
+	Qt((NN-1-i),j)=evec_tmp[i][j];
+      }
     }
-  } 
-  // Safer to sort instead of just reversing it, 
-  // but the document of the routine says evals are sorted in increasing order. 
-  // qr gives evals in decreasing order.
-  for(int i=0;i<NN;i++){
-    lmd [NN-1-i]=evals_tmp[i];
-    for(int j=0;j<NN;j++){
-      Qt((NN-1-i),j)=evec_tmp[i][j];
-    }
-  }
 #else 
-  assert(0);
+    assert(0);
 #endif
-}
-
-void diagonalize_QR(std::vector<RealD>& lmd, std::vector<RealD>& lme, 
-		    int Nk, int Nm,   
-		    Eigen::MatrixXd & Qt,
-		    GridBase *grid)
-{
-  int QRiter = 100*Nm;
-  int kmin = 1;
-  int kmax = Nk;
-  
-  // (this should be more sophisticated)
-  for(int iter=0; iter<QRiter; ++iter){
-    
-    // determination of 2x2 leading submatrix
-    RealD dsub = lmd[kmax-1]-lmd[kmax-2];
-    RealD dd = std::sqrt(dsub*dsub + 4.0*lme[kmax-2]*lme[kmax-2]);
-    RealD Dsh = 0.5*(lmd[kmax-2]+lmd[kmax-1] +dd*(dsub/fabs(dsub)));
-    // (Dsh: shift)
-    
-    // transformation
-    QR_decomp(lmd,lme,Nk,Nm,Qt,Dsh,kmin,kmax); // Nk, Nm
-    
-    // Convergence criterion (redef of kmin and kamx)
-    for(int j=kmax-1; j>= kmin; --j){
-      RealD dds = fabs(lmd[j-1])+fabs(lmd[j]);
-      if(fabs(lme[j-1])+dds > dds){
-	kmax = j+1;
-	goto continued;
-      }
-    }
-    QRiter = iter;
-    return;
-    
-  continued:
-    for(int j=0; j<kmax-1; ++j){
-      RealD dds = fabs(lmd[j])+fabs(lmd[j+1]);
-      if(fabs(lme[j])+dds > dds){
-	kmin = j+1;
-	break;
-      }
-    }
   }
-  std::cout << GridLogError << "[QL method] Error - Too many iteration: "<<QRiter<<"\n";
-  abort();
-}
+
+  void diagonalize_QR(std::vector<RealD>& lmd, std::vector<RealD>& lme, 
+		      int Nk, int Nm,   
+		      Eigen::MatrixXd & Qt,
+		      GridBase *grid)
+  {
+    int QRiter = 100*Nm;
+    int kmin = 1;
+    int kmax = Nk;
+  
+    // (this should be more sophisticated)
+    for(int iter=0; iter<QRiter; ++iter){
+    
+      // determination of 2x2 leading submatrix
+      RealD dsub = lmd[kmax-1]-lmd[kmax-2];
+      RealD dd = std::sqrt(dsub*dsub + 4.0*lme[kmax-2]*lme[kmax-2]);
+      RealD Dsh = 0.5*(lmd[kmax-2]+lmd[kmax-1] +dd*(dsub/fabs(dsub)));
+      // (Dsh: shift)
+    
+      // transformation
+      QR_decomp(lmd,lme,Nk,Nm,Qt,Dsh,kmin,kmax); // Nk, Nm
+    
+      // Convergence criterion (redef of kmin and kamx)
+      for(int j=kmax-1; j>= kmin; --j){
+	RealD dds = fabs(lmd[j-1])+fabs(lmd[j]);
+	if(fabs(lme[j-1])+dds > dds){
+	  kmax = j+1;
+	  goto continued;
+	}
+      }
+      QRiter = iter;
+      return;
+    
+    continued:
+      for(int j=0; j<kmax-1; ++j){
+	RealD dds = fabs(lmd[j])+fabs(lmd[j+1]);
+	if(fabs(lme[j])+dds > dds){
+	  kmin = j+1;
+	  break;
+	}
+      }
+    }
+    std::cout << GridLogError << "[QL method] Error - Too many iteration: "<<QRiter<<"\n";
+    abort();
+  }
 };
+
+
 
 NAMESPACE_END(Grid);
 #endif
