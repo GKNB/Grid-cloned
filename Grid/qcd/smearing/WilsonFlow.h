@@ -178,7 +178,7 @@ std::vector<RealD> WilsonFlowBase<Gimpl>::flowMeasureEnergyDensityPlaquette(Gaug
       std::cout << GridLogMessage << "[WilsonFlow] Computing plaquette energy density for step " << step << std::endl;
       out.push_back( energyDensityPlaquette(t,U) );
     });      
-  smear(V,U);
+  this->smear(V,U);
   return out;
 }
 
@@ -196,7 +196,7 @@ std::vector<RealD> WilsonFlowBase<Gimpl>::flowMeasureEnergyDensityCloverleaf(Gau
       std::cout << GridLogMessage << "[WilsonFlow] Computing Cloverleaf energy density for step " << step << std::endl;
       out.push_back( energyDensityCloverleaf(t,U) );
     });      
-  smear(V,U);
+  this->smear(V,U);
   return out;
 }
 
