@@ -3,7 +3,11 @@ namespace Grid {
 template<class Field> class PowerMethod  
 { 
  public: 
-
+  RealD tolerance;  
+  int max_iter;
+  
+  PowerMethod(RealD _tol=0.001, int _max_iter=50): tolerance(_tol), max_iter(_max_iter){ }
+  
   template<typename T>  static RealD normalise(T& v) 
   {
     RealD nn = norm2(v);
@@ -20,9 +24,8 @@ template<class Field> class PowerMethod
     RealD evalMaxApprox = 0.0; 
     auto src_n = src; 
     auto tmp = src; 
-    const int _MAX_ITER_EST_ = 50; 
 
-    for (int i=0;i<_MAX_ITER_EST_;i++) { 
+    for (int i=0;i< max_iter ;i++) { 
       
       normalise(src_n); 
       HermOp.HermOp(src_n,tmp); 
@@ -32,9 +35,12 @@ template<class Field> class PowerMethod
 
       std::cout << GridLogIterative << "PowerMethod: Current approximation of largest eigenvalue " << na << std::endl;
       
-      if ( (fabs(evalMaxApprox/na - 1.0) < 0.001) || (i==_MAX_ITER_EST_-1) ) { 
+      if ( (fabs(evalMaxApprox/na - 1.0) < tolerance) || (i==max_iter-1) ) { 
  	evalMaxApprox = na; 
 	std::cout << GridLogMessage << " Approximation of largest eigenvalue: " << evalMaxApprox << std::endl;
+	if( fabs(evalMaxApprox/na - 1.0) > tolerance && i==max_iter-1 )
+	  std::cout << GridLogMessage << " Warning: power method did not converge within max iterations " << max_iter << std::endl;	  
+	 
  	return evalMaxApprox; 
       } 
       evalMaxApprox = na; 
