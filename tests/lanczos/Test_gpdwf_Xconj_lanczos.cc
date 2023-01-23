@@ -107,7 +107,6 @@ int main (int argc, char ** argv)
 
   innerProductImplementationXconjugate<OneFlavorFermionField> inner_Xconj;
   ImplicitlyRestartedLanczosHermOpTester<OneFlavorFermionField> tester_Xconj(Op_Xconj, inner_Xconj);
-
   ImplicitlyRestartedLanczos<OneFlavorFermionField> IRL_Xconj(OpCheby_Xconj,Op_Xconj,tester_Xconj,inner_Xconj,Nstop,Nk,Nm,resid,MaxIt);
  
   std::vector<RealD> eval_reg(Nm);
@@ -140,6 +139,16 @@ int main (int argc, char ** argv)
 
   std::cout << "Comparing eigenvectors: " << std::endl;
   for(int i=0;i<std::min(Nconv_reg, Nconv_Xconj);i++){
+    OneFlavorFermionField tmp(FrbGrid);
+    HermOp_Xconj.HermOp(evec_Xconj[i], tmp);
+    tmp = tmp - eval_Xconj[i]*evec_Xconj[i];
+    std::cout << "Test Xconj evec is an evec (expect 0): " << norm2(tmp) << "  and norm2 of evec should be 1/2: " << norm2(evec_Xconj[i]) << std::endl;
+
+    TwoFlavorFermionField tmp2f(FrbGrid);
+    HermOp_reg.HermOp(evec_reg[i], tmp2f);
+    tmp2f = tmp2f - eval_reg[i]*evec_reg[i];
+    std::cout << "Test Gparity evec is an evec (expect 0): " << norm2(tmp2f) << "  and norm2 of evec should be 1: " << norm2(evec_reg[i]) << std::endl;
+
     //We need to phase-rotate the regular evecs into X-conjugate vectors
     OneFlavorFermionField v0 = PeekIndex<GparityFlavourIndex>(evec_reg[i],0);
     OneFlavorFermionField v1 = PeekIndex<GparityFlavourIndex>(evec_reg[i],1);
@@ -151,7 +160,7 @@ int main (int argc, char ** argv)
     //w should be X-conjugate; check
     OneFlavorFermionField w0 = PeekIndex<GparityFlavourIndex>(w,0);
     OneFlavorFermionField w1 = PeekIndex<GparityFlavourIndex>(w,1);
-    OneFlavorFermionField tmp = w1 + X*conjugate(w0);
+    tmp = w1 + X*conjugate(w0);
     std::cout << "Converted regular evec to X-conjugate: check (expect 0): " << norm2(tmp) << std::endl;
 
     tmp = w0 - evec_Xconj[i];

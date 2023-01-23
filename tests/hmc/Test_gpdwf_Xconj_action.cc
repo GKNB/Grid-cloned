@@ -76,7 +76,7 @@ int main (int argc, char ** argv)
   typedef typename XconjugateMobiusFermionR::FermionField FermionField1f;
 
   GparityMobiusFermionD ::ImplParams params;
-  std::vector<int> twists({1,1,1,0});
+  std::vector<int> twists({1,1,0,1}); //G-parity in x,y  periodic in z, antiperiodic in t
   params.twists = twists;    
   GparityMobiusFermionR reg_action_m1(Umu,*FGrid,*FrbGrid,*UGrid,*UrbGrid,m1,M5,mob_b,mob_b-1.,params);
   GparityMobiusFermionR reg_action_m2(Umu,*FGrid,*FrbGrid,*UGrid,*UrbGrid,m2,M5,mob_b,mob_b-1.,params);
@@ -93,6 +93,8 @@ int main (int argc, char ** argv)
 
   //Gauge BCs
   typedef ConjugateGimplD GimplD;
+  std::vector<int> gauge_twists = twists;
+  gauge_twists[3] = 0; //periodic in time
   GimplD::setDirections(twists);
 
   typedef typename GparityMobiusFermionD::Impl_t FImplD;
