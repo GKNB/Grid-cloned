@@ -140,6 +140,49 @@ public:
 #undef DEFOP;
 };
 
+const Gamma & Xmatrix(){
+  static Gamma C = Gamma(Gamma::Algebra::MinusGammaY) * Gamma(Gamma::Algebra::GammaT);
+  static Gamma g5 = Gamma(Gamma::Algebra::Gamma5);
+  static Gamma X = C*g5;
+  return X;
+}
+
+typedef typename GparityMobiusFermionR::FermionField FermionField2f;
+typedef typename XconjugateMobiusFermionR::FermionField FermionField1f;
+
+
+void boostXconjToGparity(FermionField2f &out, const FermionField1f &in){
+  PokeIndex<GparityFlavourIndex>(out, in, 0);
+  FermionField1f tmp = -(Xmatrix()*conjugate(in));
+  PokeIndex<GparityFlavourIndex>(out, tmp, 1);
+}
+void boostXbarConjToGparity(FermionField2f &out, const FermionField1f &in){
+  PokeIndex<GparityFlavourIndex>(out, in, 0);
+  FermionField1f tmp = Xmatrix()*conjugate(in);
+  PokeIndex<GparityFlavourIndex>(out, tmp, 1);
+}
+
+template<typename Field>
+inline RealD norm2Diff(const Field &a, const Field &b){
+  return norm2(Field(a-b));
+}
+
+void norm2DiffXconj(double &diff_f0, double &diff_f1, const FermionField2f &gp, const FermionField1f &xconj){
+  FermionField1f tmp = PeekIndex<GparityFlavourIndex>(gp,0);
+  diff_f0 = norm2(FermionField1f(tmp-xconj));
+  tmp = PeekIndex<GparityFlavourIndex>(gp,1);
+  FermionField1f xconj_f1 = -(Xmatrix()*conjugate(xconj));
+  diff_f1 = norm2(FermionField1f(tmp-xconj_f1));
+}
+void norm2DiffXbarConj(double &diff_f0, double &diff_f1, const FermionField2f &gp, const FermionField1f &xconj){
+  FermionField1f tmp = PeekIndex<GparityFlavourIndex>(gp,0);
+  diff_f0 = norm2(FermionField1f(tmp-xconj));
+  tmp = PeekIndex<GparityFlavourIndex>(gp,1);
+  FermionField1f xconj_f1 = Xmatrix()*conjugate(xconj);
+  diff_f1 = norm2(FermionField1f(tmp-xconj_f1));
+}
+
+
 int main (int argc, char ** argv)
 {
   Grid_init(&argc,&argv);
@@ -160,9 +203,7 @@ int main (int argc, char ** argv)
   LatticeGaugeField Umu(UGrid); 
   SU<Nc>::HotConfiguration(RNG4, Umu);
 
-  Gamma C = Gamma(Gamma::Algebra::MinusGammaY) * Gamma(Gamma::Algebra::GammaT);
-  Gamma g5 = Gamma(Gamma::Algebra::Gamma5);
-  Gamma X = C*g5;
+  Gamma X = Xmatrix();
   
   //Set up a regular MDWF action instance as well as X-conj and Xbar-conj versions
   RealD mass=0.01;
@@ -182,10 +223,7 @@ int main (int argc, char ** argv)
 
   xparams.boundary_phase = -1.0;
   XconjugateMobiusFermionR xbarconj_action(Umu,*FGrid,*FrbGrid,*UGrid,*UrbGrid,mass,M5,mob_b,mob_b-1.,xparams);
-
-  
-  typedef typename GparityMobiusFermionR::FermionField FermionField2f;
-  typedef typename XconjugateMobiusFermionR::FermionField FermionField1f;
+ 
 
   //#######################################################################################################################################
   {
@@ -220,15 +258,13 @@ int main (int argc, char ** argv)
     FermionField1f M01Xvconj = PeekIndex<GparityFlavourIndex>(tmp2,0);
 
     tmpsc = -(X*conjugate(M11Xvconj));
-    tmpsc2 = tmpsc - M00v;
-    nrm = norm2(tmpsc2);
+    nrm = norm2Diff(tmpsc, M00v);
     std::cout << "Test of M00 v =  -X M11* X v = -X [M11 X v*]* (expect 0): " << nrm << std::endl;
     assert(nrm < 1e-10);
 
     //Test  M10 v =  X M01* X v = X [M01 X v*]*
     tmpsc = X*conjugate(M01Xvconj);
-    tmpsc2 = tmpsc - M10v;
-    nrm = norm2(tmpsc2);
+    nrm = norm2Diff(tmpsc, M10v);
     std::cout << "Test of M10 v =  X M11* X v = X [M11 X v*]*  (expect 0): " << nrm << std::endl;
     assert(nrm < 1e-10);
 
@@ -255,8 +291,7 @@ int main (int argc, char ** argv)
 
     xconj_action_ref.M(tmpsc3, tmpsc);
     xconj_action.M(tmpsc3, tmpsc2);
-    tmpsc4 = tmpsc - tmpsc2;
-    nrm = norm2(tmpsc4);
+    nrm = norm2Diff(tmpsc, tmpsc2);
     std::cout << "Test of Xconjugate action M upper boundary only (expect 0): " << nrm << std::endl;
     assert(nrm < 1e-10);
 
@@ -265,16 +300,14 @@ int main (int argc, char ** argv)
     SpinorS r1,r2;
     peekSite(r1, tmpsc, site);
     peekSite(r2, tmpsc2, site);
-    SpinorS diff = r1 - r2;
-    nrm = norm2(diff);
+    nrm = norm2Diff(r1,r2);
     std::cout << "Results L-1\nref:  " << r1 << "\nimpl: " << r2 << "\ndiff (expect 0): " << nrm << std::endl;
     assert(nrm < 1e-10);
 
     site[1] = 1;
     peekSite(r1, tmpsc, site);
     peekSite(r2, tmpsc2, site);
-    diff = r1 - r2;
-    nrm = norm2(diff);
+    nrm = norm2Diff(r1,r2);
     std::cout << "Results 1\nref:  " << r1 << "\nimpl: " << r2 << "\ndiff (expect 0): " << nrm << std::endl;
     assert(nrm < 1e-10);
 
@@ -286,8 +319,7 @@ int main (int argc, char ** argv)
 
     xconj_action_ref.M(tmpsc3, tmpsc);
     xconj_action.M(tmpsc3, tmpsc2);
-    tmpsc4 = tmpsc - tmpsc2;
-    nrm = norm2(tmpsc4);
+    nrm = norm2Diff(tmpsc,tmpsc2);
     std::cout << "Test of Xconjugate action M lower boundary only (expect 0): " << nrm << std::endl;
     assert(nrm < 1e-10);
 
@@ -295,8 +327,7 @@ int main (int argc, char ** argv)
 
     peekSite(r1, tmpsc, site);
     peekSite(r2, tmpsc2, site);
-    diff = r1 - r2;
-    nrm = norm2(diff);
+    nrm = norm2Diff(r1,r2);
     std::cout << "Results 0\nref:  " << r1 << "\nimpl: " << r2 << "\ndiff (expect 0): " << nrm << std::endl;
     assert(nrm < 1e-10);
 
@@ -304,91 +335,61 @@ int main (int argc, char ** argv)
 
     peekSite(r1, tmpsc, site);
     peekSite(r2, tmpsc2, site);
-    diff = r1 - r2;
-    nrm = norm2(diff);
+    nrm = norm2Diff(r1,r2);
     std::cout << "Results L-2\nref:  " << r1 << "\nimpl: " << r2 << "\ndiff (expect 0): " << nrm << std::endl;
     assert(nrm < 1e-10);
 
     //Test full
     xconj_action_ref.M(rand_sc, tmpsc);
     xconj_action.M(rand_sc, tmpsc2);
-    tmpsc4 = tmpsc - tmpsc2;
-    nrm = norm2(tmpsc4);
+    nrm = norm2Diff(tmpsc,tmpsc2);
     std::cout << "Test of Xconjugate action M against reference, full field (expect 0): " << nrm << std::endl;
     assert(nrm < 1e-10);
 
     xconj_action_ref.Mdag(rand_sc, tmpsc);
     xconj_action.Mdag(rand_sc, tmpsc2);
-    tmpsc4 = tmpsc - tmpsc2;
-    nrm = norm2(tmpsc4);
+    nrm = norm2Diff(tmpsc,tmpsc2);
     std::cout << "Test of Xconjugate action Mdag against reference, full field (expect 0): " << nrm << std::endl;
     assert(nrm < 1e-10);
 
     xbarconj_action_ref.M(rand_sc, tmpsc);
     xbarconj_action.M(rand_sc, tmpsc2);
-    tmpsc4 = tmpsc - tmpsc2;
-    nrm = norm2(tmpsc4);
+    nrm = norm2Diff(tmpsc,tmpsc2);
     std::cout << "Test of Xbar-conjugate action M against reference, full field (expect 0): " << nrm << std::endl;
     assert(nrm < 1e-10);
 
     xbarconj_action_ref.Mdag(rand_sc, tmpsc);
     xbarconj_action.Mdag(rand_sc, tmpsc2);
-    tmpsc4 = tmpsc - tmpsc2;
-    nrm = norm2(tmpsc4);
+    nrm = norm2Diff(tmpsc,tmpsc2);
     std::cout << "Test of Xbar-conjugate action Mdag against reference, full field (expect 0): " << nrm << std::endl;
     assert(nrm < 1e-10);
 
+    RealD u, l;
+
     //Test the X-conjugate Dirac op acting on a field is the same as the G-parity Dirac op acting on the equivalent 2f field
     xconj_action.M(rand_sc, tmpsc);
-
-    PokeIndex<GparityFlavourIndex>(tmp, rand_sc, 0); //build 2f field
-    tmpsc2 = -(X*conjugate(rand_sc));
-    PokeIndex<GparityFlavourIndex>(tmp, tmpsc2, 1);
+    boostXconjToGparity(tmp, rand_sc);
     reg_action.M(tmp, tmp2);
-
-    //  break out upper and lower flavor components
-    tmpsc2 = PeekIndex<GparityFlavourIndex>(tmp2,0);
-    tmpsc3 = tmpsc2 - tmpsc;
-    RealD u = norm2(tmpsc3);
-    tmpsc = -(X*conjugate(tmpsc));
-    tmpsc2 = PeekIndex<GparityFlavourIndex>(tmp2,1);
-    tmpsc3 = tmpsc2 - tmpsc;
-    RealD l = norm2(tmpsc3);
-
+    norm2DiffXconj(u,l,tmp2,tmpsc);
     std::cout << "Test X-conj Dop reproduces G-parity Dop acting on X-conjugate field, f=0 (expect 0): " << u << " f=1 (expect 0): " << l << std::endl;
     assert(l < 1e-10);
     assert(u < 1e-10);
 
     //Test the Xbar-conjugate Dirac op acting on a field is the same as the G-parity Dirac op acting on the equivalent 2f field
     xbarconj_action.M(rand_sc, tmpsc);
-    PokeIndex<GparityFlavourIndex>(tmp, rand_sc, 0);
-
-    tmpsc2 = X*conjugate(rand_sc);
-    PokeIndex<GparityFlavourIndex>(tmp, tmpsc2, 1);
+    boostXbarConjToGparity(tmp, rand_sc);
     reg_action.M(tmp, tmp2);
-
-    tmpsc2 = PeekIndex<GparityFlavourIndex>(tmp2,0);
-    tmpsc3 = tmpsc2 - tmpsc;
-    u = norm2(tmpsc3);
-    tmpsc = X*conjugate(tmpsc);
-    tmpsc2 = PeekIndex<GparityFlavourIndex>(tmp2,1);
-    tmpsc3 = tmpsc2 - tmpsc;
-    l = norm2(tmpsc3);
-
+    norm2DiffXbarConj(u,l,tmp2,tmpsc);
     std::cout << "Test Xbar-conj Dop reproduces G-parity Dop acting on Xbar-conjugate field, f=0 (expect 0): " << u << " f=1 (expect 0): " << l << std::endl;
     assert(l < 1e-10);
     assert(u < 1e-10);
 
     //Test the X-conj 2f wrapper reproduces G-parity Dop acting on X-conjugate field 
     Xconjugate2fWrapper<XconjugateMobiusFermionR, GparityMobiusFermionR> xconj_2f_wrapper(&xconj_action,&reg_action);
-    PokeIndex<GparityFlavourIndex>(tmp, rand_sc, 0); //build 2f field
-    tmpsc2 = -(X*conjugate(rand_sc));
-    PokeIndex<GparityFlavourIndex>(tmp, tmpsc2, 1);
-
+    boostXconjToGparity(tmp, rand_sc);
     xconj_2f_wrapper.M(tmp, tmp3);
     reg_action.M(tmp, tmp2);
-    tmp4 = tmp3 - tmp2;
-    nrm = norm2(tmp4);
+    nrm = norm2Diff(tmp3,tmp2);
     std::cout << "Test the X-conj 2f wrapper reproduces G-parity Dop acting on X-conjugate field (expect 0): " << nrm << std::endl;
     assert(nrm < 1e-10);
   }
@@ -431,15 +432,13 @@ int main (int argc, char ** argv)
     FermionField1f M01Xvconj = PeekIndex<GparityFlavourIndex>(tmp2,0);
 
     tmpsc = -(X*conjugate(M11Xvconj));
-    tmpsc2 = tmpsc - M00v;
-    nrm = norm2(tmpsc2);
+    nrm = norm2Diff(tmpsc, M00v);
     std::cout << "Test of M00 v =  -X M11* X v = -X [M11 X v*]*  (expect 0): " << nrm << std::endl;
     assert(nrm < 1e-10);
 
     //Test  M10 v =  X M01* X v = X [M01 X v*]*
     tmpsc = X*conjugate(M01Xvconj);
-    tmpsc2 = tmpsc - M10v;
-    nrm = norm2(tmpsc2);
+    nrm = norm2Diff(tmpsc,M10v);
     std::cout << "Test of M10 v =  X M11* X v = X [M11 X v*]*  (expect 0): " << nrm << std::endl;
     assert(nrm < 1e-10);
 
@@ -457,134 +456,91 @@ int main (int argc, char ** argv)
     M01Xvconj = PeekIndex<GparityFlavourIndex>(tmp2,0);
 
     tmpsc = -(X*conjugate(M11Xvconj));
-    tmpsc2 = tmpsc - M00v;
-    nrm = norm2(tmpsc2);
+    nrm = norm2Diff(tmpsc,M00v);
     std::cout << "Test of M00 v =  -X M11* X v = -X [M11 X v*]*  (expect 0): " << nrm << std::endl;
     assert(nrm < 1e-10);
 
     //Test  M10 v =  X M01* X v = X [M01 X v*]*
     tmpsc = X*conjugate(M01Xvconj);
-    tmpsc2 = tmpsc - M10v;
-    nrm = norm2(tmpsc2);
+    nrm = norm2Diff(tmpsc,M10v);
     std::cout << "Test of M10 v =  X M11* X v = X [M11 X v*]*  (expect 0): " << nrm << std::endl;
     assert(nrm < 1e-10);
 
     //Test the X-conjugate implementation
     std::cout << "Test the implementation of the X-conjugate preconditioned action against the reference"<< std::endl;
-
-
     xconj_action_ref.Meooe(rand_sc, tmpsc);
     xconj_action.Meooe(rand_sc, tmpsc2);
-    tmpsc3 = tmpsc - tmpsc2;
-    nrm = norm2(tmpsc3);
+    nrm = norm2Diff(tmpsc,tmpsc2);
     std::cout << "Test of X-conjugate action Meooe against reference, full field (expect 0): " << nrm << std::endl;
     assert(nrm < 1e-10);
 
     xconj_action_ref.MeooeDag(rand_sc, tmpsc);
     xconj_action.MeooeDag(rand_sc, tmpsc2);
-    tmpsc3 = tmpsc - tmpsc2;
-    nrm = norm2(tmpsc3);
+    nrm = norm2Diff(tmpsc,tmpsc2);
     std::cout << "Test of X-conjugate action MeooeDag against reference, full field (expect 0): " << nrm << std::endl;
     assert(nrm < 1e-10);
 
     xconj_action_ref.Mooee(rand_sc, tmpsc);
     xconj_action.Mooee(rand_sc, tmpsc2);
-    tmpsc3 = tmpsc - tmpsc2;
-    nrm = norm2(tmpsc3);
+    nrm = norm2Diff(tmpsc,tmpsc2);
     std::cout << "Test of X-conjugate action Mooee against reference, full field (expect 0): " << nrm << std::endl;
     assert(nrm < 1e-10);
 
     xconj_action_ref.MooeeDag(rand_sc, tmpsc);
     xconj_action.MooeeDag(rand_sc, tmpsc2);
-    tmpsc3 = tmpsc - tmpsc2;
-    nrm = norm2(tmpsc3);
+    nrm = norm2Diff(tmpsc,tmpsc2);
     std::cout << "Test of X-conjugate action MooeeDag against reference, full field (expect 0): " << nrm << std::endl;
     assert(nrm < 1e-10);
         
     xconj_action_ref.MooeeInv(rand_sc, tmpsc);
     xconj_action.MooeeInv(rand_sc, tmpsc2);
-    tmpsc3 = tmpsc - tmpsc2;
-    nrm = norm2(tmpsc3);
+    nrm = norm2Diff(tmpsc,tmpsc2);
     std::cout << "Test of X-conjugate action MooeeInv against reference, full field (expect 0): " << nrm << std::endl;
     assert(nrm < 1e-10);
 
     xconj_action_ref.MooeeInvDag(rand_sc, tmpsc);
     xconj_action.MooeeInvDag(rand_sc, tmpsc2);
-    tmpsc3 = tmpsc - tmpsc2;
-    nrm = norm2(tmpsc3);
+    nrm = norm2Diff(tmpsc,tmpsc2);
     std::cout << "Test of X-conjugate action MooeeInvDag against reference, full field (expect 0): " << nrm << std::endl;
     assert(nrm < 1e-10);
 
+    RealD u,l;
 
     //Test the X-conjugate Dirac op acting on a field is the same as the G-parity Dirac op acting on a field with explicit X-conjugate BCs
     xconj_schurop.HermOp(rand_sc, tmpsc);
-
-    PokeIndex<GparityFlavourIndex>(tmp, rand_sc, 0);
-    tmpsc2 = -(X*conjugate(rand_sc));
-    PokeIndex<GparityFlavourIndex>(tmp, tmpsc2, 1);
+    boostXconjToGparity(tmp, rand_sc);
     reg_schurop.HermOp(tmp, tmp2);
-
-    tmpsc2 = PeekIndex<GparityFlavourIndex>(tmp2,0);
-    tmpsc3 = tmpsc2 - tmpsc;
-    RealD u = norm2(tmpsc3);
-    tmpsc = -(X*conjugate(tmpsc));
-    tmpsc2 = PeekIndex<GparityFlavourIndex>(tmp2,1);
-    tmpsc3 = tmpsc2 - tmpsc;
-    RealD l = norm2(tmpsc3);
-
+    norm2DiffXconj(u,l,tmp2,tmpsc);
     std::cout << "Test X-conj HermOp reproduces G-parity HermOp acting on X-conjugate field, f=0 (expect 0): " << u << " f=1 (expect 0): " << l << std::endl;
     assert(u < 1e-10);
     assert(l < 1e-10);
     
-
     //Test the X-conj 2f wrapper reproduces G-parity Dop acting on X-conjugate field
     Xconjugate2fWrapper<XconjugateMobiusFermionR,GparityMobiusFermionR> xconj_2f_wrapper(&xconj_action,&reg_action);
     SchurDiagMooeeOperator<Xconjugate2fWrapper<XconjugateMobiusFermionR,GparityMobiusFermionR>, FermionField2f> xconj_2f_schurop(xconj_2f_wrapper);
-    PokeIndex<GparityFlavourIndex>(tmp, rand_sc, 0);
-    tmpsc2 = -(X*conjugate(rand_sc));
-    PokeIndex<GparityFlavourIndex>(tmp, tmpsc2, 1);
+    boostXconjToGparity(tmp, rand_sc);
     reg_schurop.HermOp(tmp, tmp2);
-
     xconj_2f_schurop.HermOp(tmp,tmp3);
-    tmp4 = tmp3 - tmp2;
-    nrm = norm2(tmp4);
+    nrm = norm2Diff(tmp3,tmp2);
     std::cout << "Test the X-conj 2f wrapper reproduces G-parity HermOp acting on X-conjugate field (expect 0): " << nrm << std::endl;
     assert(nrm < 1e-10);
 
-
-
     //Test the Xbar-conjugate Dirac op acting on a field is the same as the G-parity Dirac op acting on a field with explicit Xbar-conjugate BCs
     xbarconj_schurop.HermOp(rand_sc, tmpsc);
-
-    PokeIndex<GparityFlavourIndex>(tmp, rand_sc, 0);
-    tmpsc2 = X*conjugate(rand_sc);
-    PokeIndex<GparityFlavourIndex>(tmp, tmpsc2, 1);
+    boostXbarConjToGparity(tmp,rand_sc);
     reg_schurop.HermOp(tmp, tmp2);
-
-    tmpsc2 = PeekIndex<GparityFlavourIndex>(tmp2,0);
-    tmpsc3 = tmpsc2 - tmpsc;
-    u = norm2(tmpsc3);
-    tmpsc = X*conjugate(tmpsc);
-    tmpsc2 = PeekIndex<GparityFlavourIndex>(tmp2,1);
-    tmpsc3 = tmpsc2 - tmpsc;
-    l = norm2(tmpsc3);
-
+    norm2DiffXbarConj(u,l,tmp2,tmpsc);
     std::cout << "Test Xbar-conj HermOp reproduces G-parity HermOp acting on Xbar-conjugate field, f=0 (expect 0): " << u << " f=1 (expect 0): " << l << std::endl;
     assert(u < 1e-10);
-    assert(l < 1e-10);
-    
+    assert(l < 1e-10);   
 
     //Test the Xbar-conj 2f wrapper reproduces G-parity Dop acting on Xbar-conjugate field
     Xconjugate2fWrapper<XconjugateMobiusFermionR,GparityMobiusFermionR> xbarconj_2f_wrapper(&xbarconj_action,&reg_action);
     SchurDiagMooeeOperator<Xconjugate2fWrapper<XconjugateMobiusFermionR,GparityMobiusFermionR>, FermionField2f> xbarconj_2f_schurop(xbarconj_2f_wrapper);
-    PokeIndex<GparityFlavourIndex>(tmp, rand_sc, 0);
-    tmpsc2 = X*conjugate(rand_sc);
-    PokeIndex<GparityFlavourIndex>(tmp, tmpsc2, 1);
-
+    boostXbarConjToGparity(tmp, rand_sc);
     reg_schurop.HermOp(tmp, tmp2);
     xbarconj_2f_schurop.HermOp(tmp,tmp3);
-    tmp4 = tmp3 - tmp2;
-    nrm = norm2(tmp4);
+    nrm = norm2Diff(tmp3,tmp2);
     std::cout << "Test the Xbar-conj 2f wrapper reproduces G-parity HermOp acting on Xbar-conjugate field (expect 0): " << nrm << std::endl;
     assert(nrm < 1e-10);
 
