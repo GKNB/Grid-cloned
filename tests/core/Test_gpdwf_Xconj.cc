@@ -182,6 +182,31 @@ void norm2DiffXbarConj(double &diff_f0, double &diff_f1, const FermionField2f &g
   diff_f1 = norm2(FermionField1f(tmp-xconj_f1));
 }
 
+//1/sqrt(2) * 
+//|  X   -1 |
+//| -i   iX |
+void applyUdag(FermionField2f &out, const FermionField2f &in){
+  FermionField1f u = PeekIndex<GparityFlavourIndex>(in,0);
+  FermionField1f l = PeekIndex<GparityFlavourIndex>(in,1);
+  FermionField1f tmp = ComplexD(1./sqrt(2),0) * (Xmatrix()*u - l);
+  PokeIndex<GparityFlavourIndex>(out, tmp, 0);
+  tmp = ComplexD(0,-1./sqrt(2))*(u - Xmatrix()*l);
+  PokeIndex<GparityFlavourIndex>(out, tmp, 1);
+}
+//1/sqrt(2) * 
+//|  -X   i |
+//| -1   iX |
+void applyU(FermionField2f &out, const FermionField2f &in){
+  FermionField1f u = PeekIndex<GparityFlavourIndex>(in,0);
+  FermionField1f l = PeekIndex<GparityFlavourIndex>(in,1);
+  FermionField1f tmp = ComplexD(-1./sqrt(2)) * (Xmatrix()*u + ComplexD(0,-1)*l);
+  PokeIndex<GparityFlavourIndex>(out, tmp, 0);
+  tmp = ComplexD(-1./sqrt(2))*(u + ComplexD(0,-1)*(Xmatrix()*l));
+  PokeIndex<GparityFlavourIndex>(out, tmp, 1);
+}
+
+
+
 
 int main (int argc, char ** argv)
 {
@@ -392,6 +417,83 @@ int main (int argc, char ** argv)
     nrm = norm2Diff(tmp3,tmp2);
     std::cout << "Test the X-conj 2f wrapper reproduces G-parity Dop acting on X-conjugate field (expect 0): " << nrm << std::endl;
     assert(nrm < 1e-10);
+
+    //Show that U^dag * v with X-conj v is real
+    boostXconjToGparity(tmp, rand_sc);
+    applyUdag(tmp2,tmp);
+    tmp3 = tmp2 - conjugate(tmp2);
+    nrm = norm2(tmp3);
+    std::cout << "Test U^dag v with v an X-conj vector results in a real vector (expect 0): " << nrm << std::endl;
+    assert(nrm < 1e-10);
+
+    //Check its form
+    tmpsc = PeekIndex<GparityFlavourIndex>(tmp2,0);
+    tmpsc2 = sqrt(2.)*(Xmatrix()*real(rand_sc));
+    nrm = norm2Diff(tmpsc,tmpsc2);
+    std::cout << "Test U^dag v upper component has expected form (expect 0): " << nrm << std::endl;
+    assert(nrm < 1e-10);
+
+    tmpsc = PeekIndex<GparityFlavourIndex>(tmp2,1);
+    tmpsc2 = sqrt(2.)*imag(rand_sc);
+    nrm = norm2Diff(tmpsc,tmpsc2);
+    std::cout << "Test U^dag v lower component has expected form (expect 0): " << nrm << std::endl;
+    assert(nrm < 1e-10);
+
+    //Show that U is unitary
+    gaussian(RNG5,tmp);
+    applyUdag(tmp2,tmp);
+    applyU(tmp3,tmp2);
+    nrm = norm2Diff(tmp3,tmp);
+    std::cout << "Test U U^dag = 1 (expect 0): " << nrm << std::endl;
+    assert(nrm < 1e-10);
+    
+    applyU(tmp2,tmp);
+    applyUdag(tmp3,tmp2);
+    nrm = norm2Diff(tmp3,tmp);
+    std::cout << "Test U^dag U = 1 (expect 0): " << nrm << std::endl;
+    assert(nrm < 1e-10);
+
+    {
+      //Show -U^* U^dag = -U U^T = Xi
+      gaussian(RNG5,tmp);
+
+      tmp2 = conjugate(tmp);   // U^T v = (U^dag v^*)^*
+      applyUdag(tmp3,tmp2);
+      tmp2 = conjugate(tmp3);
+      applyU(tmp3,tmp2); //U U^T v
+      tmp3 = -tmp3;
+
+      //Xi = -i sigma2 X
+      GparityFlavour sigma2 = GparityFlavour(GparityFlavour::Algebra::SigmaY);
+      tmp2 = ComplexD(0,-1)*(sigma2*(Xmatrix()*tmp));
+      nrm = norm2Diff(tmp3,tmp2);
+      std::cout << "Test Xi = -U U^T (expect 0): " << nrm << std::endl;
+      assert(nrm < 1e-10);
+    }
+
+
+    {
+      //Show R = U^dag M U is a real matrix through
+      // (R v)^* = R v^*
+      FermionField2f Rv_allstar(FGrid), R_vstar(FGrid), v(FGrid);
+      gaussian(RNG5,v);
+      applyU(tmp, v);
+      reg_action.M(tmp, tmp2);
+      applyUdag(Rv_allstar,tmp2); //Rv
+      Rv_allstar = conjugate(Rv_allstar);
+
+      tmp = conjugate(v);
+      applyU(tmp2,tmp);
+      reg_action.M(tmp2, tmp);
+      applyUdag(R_vstar,tmp); //Rv
+
+      nrm = norm2Diff(R_vstar,Rv_allstar);
+      std::cout << "Test U^dag M U is a real matrix (expect 0): " << nrm << std::endl;
+      assert(nrm < 1e-10);
+    }
+    
+    
+
   }
 
   //########################################################################
