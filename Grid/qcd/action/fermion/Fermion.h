@@ -262,15 +262,15 @@ typedef ImprovedStaggeredFermion5D<StaggeredImplF> ImprovedStaggeredFermion5DF;
 typedef ImprovedStaggeredFermion5D<StaggeredImplD> ImprovedStaggeredFermion5DD;
 
 
-typedef DomainWallFermion<XconjugateWilsonImplR> XconjugateDomainWallFermionR;
+typedef DomainWallFermion<XconjugateWilsonImplR> XconjugateDomainWallFermionD2;
 typedef DomainWallFermion<XconjugateWilsonImplF> XconjugateDomainWallFermionF;
 typedef DomainWallFermion<XconjugateWilsonImplD> XconjugateDomainWallFermionD;
 
-typedef MobiusFermion<XconjugateWilsonImplR> XconjugateMobiusFermionR;
+typedef MobiusFermion<XconjugateWilsonImplR> XconjugateMobiusFermionD2;
 typedef MobiusFermion<XconjugateWilsonImplF> XconjugateMobiusFermionF;
 typedef MobiusFermion<XconjugateWilsonImplD> XconjugateMobiusFermionD;
 
-typedef MobiusEOFAFermion<XconjugateWilsonImplR> XconjugateMobiusEOFAFermionR;
+typedef MobiusEOFAFermion<XconjugateWilsonImplR> XconjugateMobiusEOFAFermionD2;
 typedef MobiusEOFAFermion<XconjugateWilsonImplF> XconjugateMobiusEOFAFermionF;
 typedef MobiusEOFAFermion<XconjugateWilsonImplD> XconjugateMobiusEOFAFermionD;
 

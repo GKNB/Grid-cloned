@@ -147,8 +147,8 @@ const Gamma & Xmatrix(){
   return X;
 }
 
-typedef typename GparityMobiusFermionR::FermionField FermionField2f;
-typedef typename XconjugateMobiusFermionR::FermionField FermionField1f;
+typedef typename GparityMobiusFermionD::FermionField FermionField2f;
+typedef typename XconjugateMobiusFermionD::FermionField FermionField1f;
 
 
 void boostXconjToGparity(FermionField2f &out, const FermionField1f &in){
@@ -437,16 +437,16 @@ int main (int argc, char ** argv)
   std::vector<int> twists({1,1,1,0});
   params.twists = twists;
     
-  GparityMobiusFermionR reg_action(Umu,*FGrid,*FrbGrid,*UGrid,*UrbGrid,mass,M5,mob_b,mob_b-1.,params);
+  GparityMobiusFermionD reg_action(Umu,*FGrid,*FrbGrid,*UGrid,*UrbGrid,mass,M5,mob_b,mob_b-1.,params);
 
-  XconjugateMobiusFermionR::ImplParams xparams;
+  XconjugateMobiusFermionD::ImplParams xparams;
   xparams.twists = twists;
   xparams.boundary_phase = 1.0;
   
-  XconjugateMobiusFermionR xconj_action(Umu,*FGrid,*FrbGrid,*UGrid,*UrbGrid,mass,M5,mob_b,mob_b-1.,xparams);
+  XconjugateMobiusFermionD xconj_action(Umu,*FGrid,*FrbGrid,*UGrid,*UrbGrid,mass,M5,mob_b,mob_b-1.,xparams);
 
   xparams.boundary_phase = -1.0;
-  XconjugateMobiusFermionR xbarconj_action(Umu,*FGrid,*FrbGrid,*UGrid,*UrbGrid,mass,M5,mob_b,mob_b-1.,xparams);
+  XconjugateMobiusFermionD xbarconj_action(Umu,*FGrid,*FrbGrid,*UGrid,*UrbGrid,mass,M5,mob_b,mob_b-1.,xparams);
  
 
   //#######################################################################################################################################
@@ -494,8 +494,8 @@ int main (int argc, char ** argv)
 
     //Test the X-conjugate implementation
     std::cout << "Test the implementation of the X-conjugate action against the reference"<< std::endl;
-    XconjugateDWF<GparityMobiusFermionR> xconj_action_ref(&reg_action);
-    XconjugateDWF<GparityMobiusFermionR> xbarconj_action_ref(&reg_action,true);
+    XconjugateDWF<GparityMobiusFermionD> xconj_action_ref(&reg_action);
+    XconjugateDWF<GparityMobiusFermionD> xbarconj_action_ref(&reg_action,true);
 
     //Test upper boundary
     std::vector<int> L(4);
@@ -609,7 +609,7 @@ int main (int argc, char ** argv)
     assert(u < 1e-10);
 
     //Test the X-conj 2f wrapper reproduces G-parity Dop acting on X-conjugate field 
-    Xconjugate2fWrapper<XconjugateMobiusFermionR, GparityMobiusFermionR> xconj_2f_wrapper(&xconj_action,&reg_action);
+    Xconjugate2fWrapper<XconjugateMobiusFermionD, GparityMobiusFermionD> xconj_2f_wrapper(&xconj_action,&reg_action);
     boostXconjToGparity(tmp, rand_sc);
     xconj_2f_wrapper.M(tmp, tmp3);
     reg_action.M(tmp, tmp2);
@@ -819,7 +819,7 @@ int main (int argc, char ** argv)
     
     {
       //Test reference implementation
-      RotatedGPrefAction<GparityMobiusFermionR> real_action_ref(&reg_action);
+      RotatedGPrefAction<GparityMobiusFermionD> real_action_ref(&reg_action);
       FermionField1f tmp(FGrid),tmp2(FGrid),tmp3(FGrid), v(FGrid), lhs(FGrid), rhs(FGrid);
       gaussian(RNG5,v);
       applyRijRef(lhs,v,0,0,real_action_ref);
@@ -855,7 +855,7 @@ int main (int argc, char ** argv)
       reg_action.M(tmp, tmp2);
       applyUdag(Rv_test,tmp2); //Rv
  
-      RotatedGPrefAction<GparityMobiusFermionR> real_action_ref(&reg_action);
+      RotatedGPrefAction<GparityMobiusFermionD> real_action_ref(&reg_action);
       real_action_ref.M(v,Rv_ref);
       
       nrm = norm2Diff(Rv_test,Rv_ref);
@@ -870,10 +870,10 @@ int main (int argc, char ** argv)
   //########################################################################
   {
     std::cout << "Test of red-black preconditioned operator" << std::endl;
-    SchurDiagMooeeOperator<GparityMobiusFermionR,FermionField2f> reg_schurop(reg_action);
-    SchurDiagMooeeOperator<XconjugateMobiusFermionR,FermionField1f> xconj_schurop(xconj_action);
-    SchurDiagMooeeOperator<XconjugateMobiusFermionR,FermionField1f> xbarconj_schurop(xbarconj_action);
-    XconjugateDWF<GparityMobiusFermionR> xconj_action_ref(&reg_action);
+    SchurDiagMooeeOperator<GparityMobiusFermionD,FermionField2f> reg_schurop(reg_action);
+    SchurDiagMooeeOperator<XconjugateMobiusFermionD,FermionField1f> xconj_schurop(xconj_action);
+    SchurDiagMooeeOperator<XconjugateMobiusFermionD,FermionField1f> xbarconj_schurop(xbarconj_action);
+    XconjugateDWF<GparityMobiusFermionD> xconj_action_ref(&reg_action);
 
     FermionField1f rand_sc(FrbGrid), rand_sc2(FrbGrid); //v
     gaussian(RNG5rb,rand_sc);
@@ -989,8 +989,8 @@ int main (int argc, char ** argv)
     assert(l < 1e-10);
     
     //Test the X-conj 2f wrapper reproduces G-parity Dop acting on X-conjugate field
-    Xconjugate2fWrapper<XconjugateMobiusFermionR,GparityMobiusFermionR> xconj_2f_wrapper(&xconj_action,&reg_action);
-    SchurDiagMooeeOperator<Xconjugate2fWrapper<XconjugateMobiusFermionR,GparityMobiusFermionR>, FermionField2f> xconj_2f_schurop(xconj_2f_wrapper);
+    Xconjugate2fWrapper<XconjugateMobiusFermionD,GparityMobiusFermionD> xconj_2f_wrapper(&xconj_action,&reg_action);
+    SchurDiagMooeeOperator<Xconjugate2fWrapper<XconjugateMobiusFermionD,GparityMobiusFermionD>, FermionField2f> xconj_2f_schurop(xconj_2f_wrapper);
     boostXconjToGparity(tmp, rand_sc);
     reg_schurop.HermOp(tmp, tmp2);
     xconj_2f_schurop.HermOp(tmp,tmp3);
@@ -1008,8 +1008,8 @@ int main (int argc, char ** argv)
     assert(l < 1e-10);   
 
     //Test the Xbar-conj 2f wrapper reproduces G-parity Dop acting on Xbar-conjugate field
-    Xconjugate2fWrapper<XconjugateMobiusFermionR,GparityMobiusFermionR> xbarconj_2f_wrapper(&xbarconj_action,&reg_action);
-    SchurDiagMooeeOperator<Xconjugate2fWrapper<XconjugateMobiusFermionR,GparityMobiusFermionR>, FermionField2f> xbarconj_2f_schurop(xbarconj_2f_wrapper);
+    Xconjugate2fWrapper<XconjugateMobiusFermionD,GparityMobiusFermionD> xbarconj_2f_wrapper(&xbarconj_action,&reg_action);
+    SchurDiagMooeeOperator<Xconjugate2fWrapper<XconjugateMobiusFermionD,GparityMobiusFermionD>, FermionField2f> xbarconj_2f_schurop(xbarconj_2f_wrapper);
     boostXbarConjToGparity(tmp, rand_sc);
     reg_schurop.HermOp(tmp, tmp2);
     xbarconj_2f_schurop.HermOp(tmp,tmp3);

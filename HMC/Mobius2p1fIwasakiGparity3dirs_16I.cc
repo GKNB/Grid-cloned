@@ -629,12 +629,17 @@ int main(int argc, char **argv) {
   typedef typename FermionActionD::Impl_t FermionImplPolicyD;
   typedef typename FermionActionD::FermionField FermionFieldD;
 
+  typedef GparityMobiusEOFAFermionD2 EOFAactionD2;
+  typedef GparityMobiusFermionD2 FermionActionD2;
+  typedef typename FermionActionD2::Impl_t FermionImplPolicyD2;
+  typedef typename FermionActionD2::FermionField FermionFieldD2;
+
   typedef GparityMobiusEOFAFermionF EOFAactionF;
   typedef GparityMobiusFermionF FermionActionF;
   typedef typename FermionActionF::Impl_t FermionImplPolicyF;
   typedef typename FermionActionF::FermionField FermionFieldF;
 
-  typedef GeneralEvenOddRatioRationalMixedPrecPseudoFermionAction<FermionImplPolicyD,FermionImplPolicyF> MixedPrecRHMC;
+  typedef GeneralEvenOddRatioRationalMixedPrecPseudoFermionAction<FermionImplPolicyD,FermionImplPolicyF,FermionImplPolicyD2> MixedPrecRHMC;
   typedef GeneralEvenOddRatioRationalPseudoFermionAction<FermionImplPolicyD> DoublePrecRHMC;
 
   //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::

@@ -60,17 +60,17 @@ int main (int argc, char ** argv)
     
   GparityMobiusFermionD ::ImplParams params_reg;
   params_reg.twists = twists;
-  GparityMobiusFermionR action_reg(Umu,*FGrid,*FrbGrid,*UGrid,*UrbGrid,mass,M5,mob_b,mob_b-1.,params_reg);
+  GparityMobiusFermionD action_reg(Umu,*FGrid,*FrbGrid,*UGrid,*UrbGrid,mass,M5,mob_b,mob_b-1.,params_reg);
 
-  XconjugateMobiusFermionR ::ImplParams params_Xconj;
+  XconjugateMobiusFermionD ::ImplParams params_Xconj;
   params_Xconj.twists = twists;
-  XconjugateMobiusFermionR action_Xconj(Umu,*FGrid,*FrbGrid,*UGrid,*UrbGrid,mass,M5,mob_b,mob_b-1.,params_Xconj);
+  XconjugateMobiusFermionD action_Xconj(Umu,*FGrid,*FrbGrid,*UGrid,*UrbGrid,mass,M5,mob_b,mob_b-1.,params_Xconj);
   
   typedef GparityMobiusFermionD::FermionField TwoFlavorFermionField;
-  typedef XconjugateMobiusFermionR::FermionField OneFlavorFermionField;
+  typedef XconjugateMobiusFermionD::FermionField OneFlavorFermionField;
 
-  SchurDiagMooeeOperator<GparityMobiusFermionR,TwoFlavorFermionField> HermOp_reg(action_reg);
-  SchurDiagMooeeOperator<XconjugateMobiusFermionR,OneFlavorFermionField> HermOp_Xconj(action_Xconj);
+  SchurDiagMooeeOperator<GparityMobiusFermionD,TwoFlavorFermionField> HermOp_reg(action_reg);
+  SchurDiagMooeeOperator<XconjugateMobiusFermionD,OneFlavorFermionField> HermOp_Xconj(action_Xconj);
 
   //Defaults
   int Nstop = 30;

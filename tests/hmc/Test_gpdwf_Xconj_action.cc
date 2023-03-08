@@ -72,24 +72,24 @@ int main (int argc, char ** argv)
   RealD M5=1.8;
   RealD mob_b=1.5;
 
-  typedef typename GparityMobiusFermionR::FermionField FermionField2f;
-  typedef typename XconjugateMobiusFermionR::FermionField FermionField1f;
+  typedef typename GparityMobiusFermionD::FermionField FermionField2f;
+  typedef typename XconjugateMobiusFermionD::FermionField FermionField1f;
 
   GparityMobiusFermionD ::ImplParams params;
   std::vector<int> twists({1,1,0,1}); //G-parity in x,y  periodic in z, antiperiodic in t
   params.twists = twists;    
-  GparityMobiusFermionR reg_action_m1(Umu,*FGrid,*FrbGrid,*UGrid,*UrbGrid,m1,M5,mob_b,mob_b-1.,params);
-  GparityMobiusFermionR reg_action_m2(Umu,*FGrid,*FrbGrid,*UGrid,*UrbGrid,m2,M5,mob_b,mob_b-1.,params);
+  GparityMobiusFermionD reg_action_m1(Umu,*FGrid,*FrbGrid,*UGrid,*UrbGrid,m1,M5,mob_b,mob_b-1.,params);
+  GparityMobiusFermionD reg_action_m2(Umu,*FGrid,*FrbGrid,*UGrid,*UrbGrid,m2,M5,mob_b,mob_b-1.,params);
 
-  XconjugateMobiusFermionR::ImplParams xparams;
+  XconjugateMobiusFermionD::ImplParams xparams;
   xparams.twists = twists;
   xparams.boundary_phase = 1.0;
-  XconjugateMobiusFermionR xconj_action_m1(Umu,*FGrid,*FrbGrid,*UGrid,*UrbGrid,m1,M5,mob_b,mob_b-1.,xparams);
-  XconjugateMobiusFermionR xconj_action_m2(Umu,*FGrid,*FrbGrid,*UGrid,*UrbGrid,m2,M5,mob_b,mob_b-1.,xparams);
+  XconjugateMobiusFermionD xconj_action_m1(Umu,*FGrid,*FrbGrid,*UGrid,*UrbGrid,m1,M5,mob_b,mob_b-1.,xparams);
+  XconjugateMobiusFermionD xconj_action_m2(Umu,*FGrid,*FrbGrid,*UGrid,*UrbGrid,m2,M5,mob_b,mob_b-1.,xparams);
 
   xparams.boundary_phase = -1.0;
-  XconjugateMobiusFermionR xbarconj_action_m1(Umu,*FGrid,*FrbGrid,*UGrid,*UrbGrid,m1,M5,mob_b,mob_b-1.,xparams);
-  XconjugateMobiusFermionR xbarconj_action_m2(Umu,*FGrid,*FrbGrid,*UGrid,*UrbGrid,m2,M5,mob_b,mob_b-1.,xparams);
+  XconjugateMobiusFermionD xbarconj_action_m1(Umu,*FGrid,*FrbGrid,*UGrid,*UrbGrid,m1,M5,mob_b,mob_b-1.,xparams);
+  XconjugateMobiusFermionD xbarconj_action_m2(Umu,*FGrid,*FrbGrid,*UGrid,*UrbGrid,m2,M5,mob_b,mob_b-1.,xparams);
 
   //Gauge BCs
   typedef ConjugateGimplD GimplD;

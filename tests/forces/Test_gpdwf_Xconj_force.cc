@@ -31,8 +31,8 @@ Author: Peter Boyle <paboyle@ph.ed.ac.uk>
 using namespace std;
 using namespace Grid;
 
-typedef GparityDomainWallFermionR::FermionField FermionField2f;
-typedef XconjugateDomainWallFermionR::FermionField FermionField1f;
+typedef GparityDomainWallFermionD::FermionField FermionField2f;
+typedef XconjugateDomainWallFermionD::FermionField FermionField1f;
 
 const Gamma & Xmatrix(){
   static Gamma C = Gamma(Gamma::Algebra::MinusGammaY) * Gamma(Gamma::Algebra::GammaT);
@@ -81,16 +81,16 @@ int main (int argc, char ** argv)
   RealD mass=0.01; 
   RealD M5=1.8; 
   
-  XconjugateDomainWallFermionR::ImplParams xparams;
+  XconjugateDomainWallFermionD::ImplParams xparams;
   std::vector<int> twists({1,1,1,1}); //GPBC in 3 dirs, antiperiodic in time
   xparams.twists = twists;
   xparams.boundary_phase = 1.0;
 
-  XconjugateDomainWallFermionR Ddwf(U,*FGrid,*FrbGrid,*UGrid,*UrbGrid,mass,M5,xparams);
+  XconjugateDomainWallFermionD Ddwf(U,*FGrid,*FrbGrid,*UGrid,*UrbGrid,mass,M5,xparams);
 
-  GparityDomainWallFermionR::ImplParams params;  params.twists = twists;
-  GparityDomainWallFermionR Ddwf_gp(U,*FGrid,*FrbGrid,*UGrid,*UrbGrid,mass,M5,params);
-  typedef GparityDomainWallFermionR::FermionField FermionField2f;
+  GparityDomainWallFermionD::ImplParams params;  params.twists = twists;
+  GparityDomainWallFermionD Ddwf_gp(U,*FGrid,*FrbGrid,*UGrid,*UrbGrid,mass,M5,params);
+  typedef GparityDomainWallFermionD::FermionField FermionField2f;
 
   //Action of X-conjugate operator
   LatticeFermion phi        (FGrid); gaussian(RNG5,phi);
