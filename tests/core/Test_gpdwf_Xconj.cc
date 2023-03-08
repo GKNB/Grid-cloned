@@ -204,9 +204,208 @@ void applyU(FermionField2f &out, const FermionField2f &in){
   tmp = ComplexD(-1./sqrt(2))*(u + ComplexD(0,-1)*(Xmatrix()*l));
   PokeIndex<GparityFlavourIndex>(out, tmp, 1);
 }
+template<typename GPAction>
+void applyR(FermionField2f &out, const FermionField2f &in, GPAction &action){
+  FermionField2f tmp(in.Grid()), tmp2(in.Grid());
+  applyU(tmp, in);
+  action.M(tmp, tmp2);
+  applyUdag(out,tmp2); //Rv
+}
+template<typename GPAction>
+void applyRij(FermionField1f &out, const FermionField1f &in, const int i, const int j, GPAction &action){
+  FermionField2f tmp2f(in.Grid());
+  tmp2f = Zero();
+  PokeIndex<GparityFlavourIndex>(tmp2f, in, j);
+  FermionField2f tmp2f_2(in.Grid());
+  applyR(tmp2f_2, tmp2f, action);
+  out = PeekIndex<GparityFlavourIndex>(tmp2f_2,i);
+}
+template<typename GPAction>
+void applyMij(FermionField1f &out, const FermionField1f &in, const int i, const int j, GPAction &action){
+  FermionField2f tmp2f(in.Grid());
+  tmp2f = Zero();
+  PokeIndex<GparityFlavourIndex>(tmp2f, in, j);
+  FermionField2f tmp2f_2(in.Grid());
+  action.M(tmp2f,tmp2f_2);
+  out = PeekIndex<GparityFlavourIndex>(tmp2f_2,i);
+}
+template<typename GPAction>
+void applyMijstar(FermionField1f &out, const FermionField1f &in, const int i, const int j, GPAction &action){
+  FermionField1f tmp(in.Grid()), tmp2(in.Grid()); //Mij* v = (Mij v*)*
+  tmp = conjugate(in);
+  applyMij(tmp2,tmp,i,j,action);
+  out = conjugate(tmp2);
+}
 
 
+//A reference implementation of the real, rotated GP Dirac operator
+template<typename GPAction>
+class RotatedGPrefAction{
+public:
+  typedef typename GPAction::FermionField TwoFlavorFermionField;
+  typedef Lattice<iSpinColourVector<typename TwoFlavorFermionField::vector_type> > OneFlavorFermionField;
 
+  GPAction *gaction;
+
+  RotatedGPrefAction(GPAction *gaction): gaction(gaction){}
+
+  //out = D_ij in
+  template<typename Op>
+  void DD(OneFlavorFermionField &out, const OneFlavorFermionField &in, const int i, const int j, const Op &op){
+    TwoFlavorFermionField tmp2f(in.Grid());
+    tmp2f = Zero();
+    PokeIndex<GparityFlavourIndex>(tmp2f, in, j);
+    TwoFlavorFermionField tmp2f_2(in.Grid());
+    op(tmp2f_2, tmp2f);
+    out = PeekIndex<GparityFlavourIndex>(tmp2f_2,i);
+  }
+  //out = D*_ij in
+  template<typename Op>
+  void DDstar(OneFlavorFermionField &out, const OneFlavorFermionField &in, const int i, const int j, const Op &op){
+    OneFlavorFermionField tmp(in.Grid()), tmp2(in.Grid());
+    tmp = conjugate(in);
+    DD(tmp2,tmp,i,j,op);
+    out = conjugate(tmp2);
+  }
+
+  //Use Re(U) V = 0.5 ( U + U^*) V = 0.5 ( UV + [U V*]* )
+  template<typename U>
+  void do_real(OneFlavorFermionField &out, const OneFlavorFermionField &in, const U &u){
+    OneFlavorFermionField tmp(in.Grid()), tmp2(in.Grid());
+    u(out,in);
+    tmp = conjugate(in);
+    u(tmp2,tmp);
+    tmp = conjugate(tmp2);
+    out = out + tmp;
+    out = out * 0.5;
+  }
+  //Use Im(U) V = -0.5i ( U - U^*) V = -0.5i ( UV - [U V*]* )
+  template<typename U>
+  void do_imag(OneFlavorFermionField &out, const OneFlavorFermionField &in, const U &u){
+    OneFlavorFermionField tmp(in.Grid()), tmp2(in.Grid());
+    u(out,in);
+
+    tmp = conjugate(in);
+    u(tmp2,tmp);
+    tmp = conjugate(tmp2);
+    out = out - tmp;
+    out = out * ComplexD(0,-0.5);
+  }
+
+  //-(X D_11 X + X D_12) in
+  template<typename Op>
+  void opAparen(OneFlavorFermionField &out, const OneFlavorFermionField &in, const Op &op){
+    OneFlavorFermionField tmp(in.Grid()), tmp2(in.Grid());
+    tmp = Xmatrix()*in;
+    DD(tmp2,tmp,0,0,op);
+    out = Xmatrix()*tmp2;
+    
+    DD(tmp,in,0,1,op);
+    tmp2 = Xmatrix() * tmp;
+    out = out + tmp2;
+    out = -out;
+  }
+  template<typename Op>
+  void opA(OneFlavorFermionField &out, const OneFlavorFermionField &in, const Op &op){
+    do_real(out,in, [&](OneFlavorFermionField &out, const OneFlavorFermionField &in){ opAparen(out,in,op); } );
+  }
+
+
+  //(-X D11 -X D12 X) in
+  template<typename Op>
+  void opBparen(OneFlavorFermionField &out, const OneFlavorFermionField &in, const Op &op){
+    OneFlavorFermionField tmp(in.Grid()), tmp2(in.Grid());
+    DD(tmp,in,0,0,op);
+    out = Xmatrix()*tmp;
+    
+    tmp = Xmatrix()*in;
+    DD(tmp2,tmp,0,1,op);
+    tmp = Xmatrix() * tmp2;
+    out = out + tmp;
+
+    out = -out;
+  }
+  template<typename Op>
+  void opB(OneFlavorFermionField &out, const OneFlavorFermionField &in, const Op &op){
+    do_imag(out,in, [&](OneFlavorFermionField &out, const OneFlavorFermionField &in){ opBparen(out,in,op); } );
+  }
+
+  //-(D11 X + D12 ) in
+  template<typename Op>
+  void opCparen(OneFlavorFermionField &out, const OneFlavorFermionField &in, const Op &op){
+    OneFlavorFermionField tmp(in.Grid()), tmp2(in.Grid());
+    tmp = Xmatrix()*in;
+    DD(out,tmp,0,0,op);
+    
+    DD(tmp,in,0,1,op);
+    out = out + tmp;
+
+    out = -out;
+  }
+  template<typename Op>
+  void opC(OneFlavorFermionField &out, const OneFlavorFermionField &in, const Op &op){
+    do_imag(out,in, [&](OneFlavorFermionField &out, const OneFlavorFermionField &in){ opCparen(out,in,op); } );
+  }
+
+  //(D11 + D12 X ) in
+  template<typename Op>
+  void opDparen(OneFlavorFermionField &out, const OneFlavorFermionField &in, const Op &op){
+    OneFlavorFermionField tmp(in.Grid()), tmp2(in.Grid());
+    DD(out,in,0,0,op);
+    
+    tmp = Xmatrix()*in;
+    DD(tmp2,tmp,0,1,op);
+    out = out + tmp2;
+  }
+  template<typename Op>
+  void opD(OneFlavorFermionField &out, const OneFlavorFermionField &in, const Op &op){
+    do_real(out,in, [&](OneFlavorFermionField &out, const OneFlavorFermionField &in){ opDparen(out,in,op); } );
+  }
+  
+  template<typename Op>
+  void opFull(TwoFlavorFermionField &out, const TwoFlavorFermionField &in, const Op &op){
+    OneFlavorFermionField u(in.Grid()), l(in.Grid()), tmp(in.Grid()), tmp2(in.Grid());
+    u = PeekIndex<GparityFlavourIndex>(in,0);
+    l = PeekIndex<GparityFlavourIndex>(in,1);
+    opA(tmp,u,op);
+    opB(tmp2,l,op);
+    tmp = tmp + tmp2;
+    PokeIndex<GparityFlavourIndex>(out, tmp, 0);
+
+    opC(tmp,u,op);
+    opD(tmp2,l,op);
+    tmp = tmp + tmp2;
+    PokeIndex<GparityFlavourIndex>(out, tmp, 1);
+  }
+
+#define DEFOP(OP)  void OP(const TwoFlavorFermionField &in, TwoFlavorFermionField &out){ opFull(out, in, \
+												[&](TwoFlavorFermionField &out, \
+												    const TwoFlavorFermionField &in){ \
+												  return gaction->OP(in,out); \
+												} \
+												); \
+                                                                                        } 
+  DEFOP(M);
+  DEFOP(Mdag);
+  DEFOP(Meooe);
+  DEFOP(MeooeDag);
+  DEFOP(Mooee);
+  DEFOP(MooeeDag);
+  DEFOP(MooeeInv);
+  DEFOP(MooeeInvDag);
+#undef DEFOP;
+};
+
+
+template<typename RefAction>
+void applyRijRef(FermionField1f &out, const FermionField1f &in, const int i, const int j, RefAction &action){
+  FermionField2f tmp2f(in.Grid());
+  tmp2f = Zero();
+  PokeIndex<GparityFlavourIndex>(tmp2f, in, j);
+  FermionField2f tmp2f_2(in.Grid());
+  action.M(tmp2f,tmp2f_2);
+  out = PeekIndex<GparityFlavourIndex>(tmp2f_2,i);
+}
 
 int main (int argc, char ** argv)
 {
@@ -491,7 +690,179 @@ int main (int argc, char ** argv)
       std::cout << "Test U^dag M U is a real matrix (expect 0): " << nrm << std::endl;
       assert(nrm < 1e-10);
     }
+
+    {
+      //Test relations between elements of M
+      //M11 = -X M00^* X
+      FermionField1f tmp(FGrid),tmp2(FGrid),tmp3(FGrid), v(FGrid), lhs(FGrid), rhs(FGrid);
+      gaussian(RNG5,v);
+      tmp = Xmatrix()*v;
+      applyMijstar(tmp2,tmp,0,0,reg_action);
+      rhs = -(Xmatrix()*tmp2);
+
+      applyMij(lhs,v,1,1,reg_action);
+      nrm = norm2Diff(lhs, rhs);
+      std::cout << "Test M11 = -X M00* X (expect 0): " << nrm << std::endl;
+      assert(nrm < 1e-10);
+
+      //M10 = X M01* X
+      tmp = Xmatrix()*v;  //X M01^* X v = (X M01 X v^* )^*
+      applyMijstar(tmp2,tmp,0,1,reg_action);
+      rhs = Xmatrix()*tmp2;  
+
+      applyMij(lhs,v,1,0,reg_action);
+      nrm = norm2Diff(lhs, rhs);
+      std::cout << "Test M10 = X M01* X (expect 0): " << nrm << std::endl;
+      assert(nrm < 1e-10);
+    }
+
+    {
+      //Test expressions for elements of R
+      //R11 = 0.5(M11 + M12 X + M12* X + M11*)
+      FermionField1f tmp(FGrid),tmp2(FGrid),tmp3(FGrid), v(FGrid), lhs(FGrid), rhs(FGrid);
+      gaussian(RNG5,v);
+      applyMij(rhs,v,0,0,reg_action);
+
+      tmp = Xmatrix()*v;
+      applyMij(tmp2,tmp,0,1,reg_action);
+      rhs = rhs + tmp2;
+
+      tmp = Xmatrix()*v;
+      applyMijstar(tmp2,tmp,0,1,reg_action);
+      rhs = rhs + tmp2;
+            
+      applyMijstar(tmp2,v,0,0,reg_action);
+      rhs = rhs + tmp2;
+
+      rhs = rhs*0.5;
+
+      applyRij(lhs,v,1,1,reg_action);
+      
+      nrm = norm2Diff(lhs, rhs);
+      std::cout << "Test R11 = 0.5(M11 + M12 X + M12* X + M11*) (expect 0): " << nrm << std::endl;
+      assert(nrm < 1e-10);
+
+      //R00 = 0.5( -X M00 X   -X M01   -X M01*  -X M00* X )
+      tmp = Xmatrix()*v;
+      applyMij(tmp2,tmp,0,0,reg_action);
+      rhs = -(Xmatrix()*tmp2);
+      
+      applyMij(tmp,v,0,1,reg_action);
+      tmp2 = -(Xmatrix()*tmp);
+      rhs = rhs + tmp2;
+
+      applyMijstar(tmp,v,0,1,reg_action);
+      tmp2 = -(Xmatrix()*tmp);
+      rhs = rhs + tmp2;
+
+      tmp = Xmatrix()*v;
+      applyMijstar(tmp2,tmp,0,0,reg_action);
+      tmp = -(Xmatrix()*tmp2);
+      rhs = rhs + tmp;
+
+      rhs = rhs * 0.5;
+      
+      applyRij(lhs,v,0,0,reg_action);
+
+      nrm = norm2Diff(lhs, rhs);
+      std::cout << "Test R00 = 0.5( -X M00 X   -X M01   -X M01*  -X M00* X ) (expect 0): " << nrm << std::endl;
+      assert(nrm < 1e-10);
+
+      //R01 = 0.5*( iX M00 + iX M01 X  -iX M01*X - iX M00* )
+      applyMij(tmp,v,0,0,reg_action);
+      rhs = Xmatrix()*tmp;
+      
+      tmp = Xmatrix()*v;
+      applyMij(tmp2,tmp,0,1,reg_action);
+      tmp = Xmatrix()*tmp2;
+      rhs = rhs + tmp;
+
+      tmp = Xmatrix()*v;
+      applyMijstar(tmp2,tmp,0,1,reg_action);
+      tmp = Xmatrix()*tmp2;
+      rhs = rhs - tmp;
+
+      applyMijstar(tmp,v,0,0,reg_action);
+      tmp2 = Xmatrix()*tmp;
+      rhs = rhs - tmp2;
+
+      rhs = rhs * ComplexD(0,0.5);
+
+      applyRij(lhs,v,0,1,reg_action);
+
+      nrm = norm2Diff(lhs, rhs);
+      std::cout << "Test R01 = 0.5*( iX M00 + iX M01 X  -iX M01*X - iX M00* ) (expect 0): " << nrm << std::endl;
+      assert(nrm < 1e-10);
+
+      //R10 = 0.5( i M00 X + i M01 -i M01* - iM00* X )
+      tmp = Xmatrix() * v;
+      applyMij(rhs,tmp,0,0,reg_action);
+      
+      applyMij(tmp,v,0,1,reg_action);
+      rhs = rhs + tmp;
+
+      applyMijstar(tmp,v,0,1,reg_action);
+      rhs = rhs - tmp;
+      
+      tmp = Xmatrix() * v;
+      applyMijstar(tmp2,tmp,0,0,reg_action);
+      rhs = rhs - tmp2;
+      
+      rhs = rhs * ComplexD(0,0.5);
+
+      applyRij(lhs,v,1,0,reg_action);
+
+      nrm = norm2Diff(lhs, rhs);     
+      std::cout << "Test R10 = 0.5( i M00 X + i M01 -i M01* - iM00* X ) (expect 0): " << nrm << std::endl;
+      assert(nrm < 1e-10);
+    }
     
+    {
+      //Test reference implementation
+      RotatedGPrefAction<GparityMobiusFermionR> real_action_ref(&reg_action);
+      FermionField1f tmp(FGrid),tmp2(FGrid),tmp3(FGrid), v(FGrid), lhs(FGrid), rhs(FGrid);
+      gaussian(RNG5,v);
+      applyRijRef(lhs,v,0,0,real_action_ref);
+      applyRij(rhs,v,0,0,reg_action);
+      nrm = norm2Diff(lhs, rhs);
+      std::cout << "Test reference impl R00 (expect 0): " << nrm << std::endl;
+      //assert(nrm < 1e-10);
+
+      applyRijRef(lhs,v,0,1,real_action_ref);
+      applyRij(rhs,v,0,1,reg_action);
+      nrm = norm2Diff(lhs, rhs);
+      std::cout << "Test reference impl R01 (expect 0): " << nrm << std::endl;
+      //assert(nrm < 1e-10);
+
+      applyRijRef(lhs,v,1,0,real_action_ref);
+      applyRij(rhs,v,1,0,reg_action);
+      nrm = norm2Diff(lhs, rhs);
+      std::cout << "Test reference impl R10 (expect 0): " << nrm << std::endl;
+      //assert(nrm < 1e-10);
+
+      applyRijRef(lhs,v,1,1,real_action_ref);
+      applyRij(rhs,v,1,1,reg_action);
+      nrm = norm2Diff(lhs, rhs);
+      std::cout << "Test reference impl R11 (expect 0): " << nrm << std::endl;
+      //assert(nrm < 1e-10);
+    }
+
+    {
+      //Test reference implementation of U^dag M U
+      FermionField2f Rv_test(FGrid), Rv_ref(FGrid), v(FGrid);
+      gaussian(RNG5,v);
+      applyU(tmp, v);
+      reg_action.M(tmp, tmp2);
+      applyUdag(Rv_test,tmp2); //Rv
+ 
+      RotatedGPrefAction<GparityMobiusFermionR> real_action_ref(&reg_action);
+      real_action_ref.M(v,Rv_ref);
+      
+      nrm = norm2Diff(Rv_test,Rv_ref);
+      std::cout << "Test reference implementation of real matrix M (expect 0): " << nrm << std::endl;
+      assert(nrm < 1e-10);
+    }
+    exit(0);
     
 
   }
