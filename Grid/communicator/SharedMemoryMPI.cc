@@ -30,6 +30,13 @@ Author: Christoph Lehner <christoph@lhnr.de>
 #include <Grid/GridCore.h>
 #include <pwd.h>
 
+#ifdef __linux__
+#include <syscall.h>
+#include <linux/perf_event.h>
+#else
+#include <sys/syscall.h>
+#endif
+
 #ifdef GRID_CUDA
 #include <cuda_runtime_api.h>
 #endif
