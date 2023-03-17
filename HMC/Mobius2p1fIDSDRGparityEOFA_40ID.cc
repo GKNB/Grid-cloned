@@ -492,7 +492,6 @@ NAMESPACE_END(Grid);
 
 
 int main(int argc, char **argv) {
-#if 0
   Grid_init(&argc, &argv);
   int threads = GridThread::GetThreads();
   // here make a routine to print all the relevant information on the run
@@ -582,7 +581,7 @@ int main(int argc, char **argv) {
   typedef typename FermionActionF::Impl_t FermionImplPolicyF;
   typedef typename FermionActionF::FermionField FermionFieldF;
 
-  typedef GeneralEvenOddRatioRationalMixedPrecPseudoFermionAction<FermionImplPolicyD,FermionImplPolicyF> MixedPrecRHMC;
+  typedef GeneralEvenOddRatioRationalMixedPrecPseudoFermionAction<FermionImplPolicyD,FermionImplPolicyF,FermionImplPolicyD> MixedPrecRHMC;
   typedef GeneralEvenOddRatioRationalPseudoFermionAction<FermionImplPolicyD> DoublePrecRHMC;
 
   //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -916,5 +915,4 @@ int main(int argc, char **argv) {
   std::cout << GridLogMessage << " Done" << std::endl;
   Grid_finalize();
   return 0;
-#endif
 } // main
