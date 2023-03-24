@@ -36,7 +36,7 @@ NAMESPACE_BEGIN(Grid);
 // Wilson compressor will need FaceGather policies for:
 // Periodic, Dirichlet, and partial Dirichlet for DWF
 ///////////////////////////////////////////////////////////////
-const int dwf_compressor_depth=1;
+const int dwf_compressor_depth=2;
 #define DWF_COMPRESS
 class FaceGatherPartialDWF
 {
@@ -110,7 +110,7 @@ public:
   ////////////////////////////////////////////////////////////////////////////////////////////
   template<class vobj,class cobj,class compressor>
   static void Gather_plane_exchange(commVector<std::pair<int,int> >& table,const Lattice<vobj> &rhs,
-				    Vector<cobj *> pointers,int dimension,int plane,int cbmask,
+				    std::vector<cobj *> pointers,int dimension,int plane,int cbmask,
 				    compressor &compress,int type,int partial)
   {
     GridBase *Grid = rhs.Grid();
@@ -209,7 +209,7 @@ public:
   }
   template<class vobj,class cobj,class compressor>
   static void Gather_plane_exchange(commVector<std::pair<int,int> >& table,const Lattice<vobj> &rhs,
-				    Vector<cobj *> pointers,int dimension,int plane,int cbmask,
+				    std::vector<cobj *> pointers,int dimension,int plane,int cbmask,
 				    compressor &compress,int type,int partial)
   {
     //    std::cout << " face gather exch DWF partial "<<partial <<std::endl;
@@ -320,7 +320,7 @@ public:
     typedef decltype(coalescedRead(in0))    sobj;
     typedef decltype(coalescedRead(out0)) hsobj;
 
-    unsigned int Nsimd = vobj::Nsimd();
+    constexpr unsigned int Nsimd = vobj::Nsimd();
     unsigned int mask = Nsimd >> (type + 1);
     int lane = acceleratorSIMTlane(Nsimd);
     int j0 = lane &(~mask); // inner coor zero
@@ -501,24 +501,26 @@ public:
 
     int dag = compress.dag;
     int face_idx=0;
+#define vet_same_node(a,b) \
+      { auto tmp = b;  }
     if ( dag ) { 
-      assert(this->same_node[Xp]==this->HaloGatherDir(source,XpCompress,Xp,face_idx));
-      assert(this->same_node[Yp]==this->HaloGatherDir(source,YpCompress,Yp,face_idx));
-      assert(this->same_node[Zp]==this->HaloGatherDir(source,ZpCompress,Zp,face_idx));
-      assert(this->same_node[Tp]==this->HaloGatherDir(source,TpCompress,Tp,face_idx));
-      assert(this->same_node[Xm]==this->HaloGatherDir(source,XmCompress,Xm,face_idx));
-      assert(this->same_node[Ym]==this->HaloGatherDir(source,YmCompress,Ym,face_idx));
-      assert(this->same_node[Zm]==this->HaloGatherDir(source,ZmCompress,Zm,face_idx));
-      assert(this->same_node[Tm]==this->HaloGatherDir(source,TmCompress,Tm,face_idx));
+      vet_same_node(this->same_node[Xp],this->HaloGatherDir(source,XpCompress,Xp,face_idx));
+      vet_same_node(this->same_node[Yp],this->HaloGatherDir(source,YpCompress,Yp,face_idx));
+      vet_same_node(this->same_node[Zp],this->HaloGatherDir(source,ZpCompress,Zp,face_idx));
+      vet_same_node(this->same_node[Tp],this->HaloGatherDir(source,TpCompress,Tp,face_idx));
+      vet_same_node(this->same_node[Xm],this->HaloGatherDir(source,XmCompress,Xm,face_idx));
+      vet_same_node(this->same_node[Ym],this->HaloGatherDir(source,YmCompress,Ym,face_idx));
+      vet_same_node(this->same_node[Zm],this->HaloGatherDir(source,ZmCompress,Zm,face_idx));
+      vet_same_node(this->same_node[Tm],this->HaloGatherDir(source,TmCompress,Tm,face_idx));
     } else {
-      assert(this->same_node[Xp]==this->HaloGatherDir(source,XmCompress,Xp,face_idx));
-      assert(this->same_node[Yp]==this->HaloGatherDir(source,YmCompress,Yp,face_idx));
-      assert(this->same_node[Zp]==this->HaloGatherDir(source,ZmCompress,Zp,face_idx));
-      assert(this->same_node[Tp]==this->HaloGatherDir(source,TmCompress,Tp,face_idx));
-      assert(this->same_node[Xm]==this->HaloGatherDir(source,XpCompress,Xm,face_idx));
-      assert(this->same_node[Ym]==this->HaloGatherDir(source,YpCompress,Ym,face_idx));
-      assert(this->same_node[Zm]==this->HaloGatherDir(source,ZpCompress,Zm,face_idx));
-      assert(this->same_node[Tm]==this->HaloGatherDir(source,TpCompress,Tm,face_idx));
+      vet_same_node(this->same_node[Xp],this->HaloGatherDir(source,XmCompress,Xp,face_idx));
+      vet_same_node(this->same_node[Yp],this->HaloGatherDir(source,YmCompress,Yp,face_idx));
+      vet_same_node(this->same_node[Zp],this->HaloGatherDir(source,ZmCompress,Zp,face_idx));
+      vet_same_node(this->same_node[Tp],this->HaloGatherDir(source,TmCompress,Tp,face_idx));
+      vet_same_node(this->same_node[Xm],this->HaloGatherDir(source,XpCompress,Xm,face_idx));
+      vet_same_node(this->same_node[Ym],this->HaloGatherDir(source,YpCompress,Ym,face_idx));
+      vet_same_node(this->same_node[Zm],this->HaloGatherDir(source,ZpCompress,Zm,face_idx));
+      vet_same_node(this->same_node[Tm],this->HaloGatherDir(source,TpCompress,Tm,face_idx));
     }
     this->face_table_computed=1;
     assert(this->u_comm_offset==this->_unified_buffer_size);

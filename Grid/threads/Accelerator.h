@@ -248,17 +248,23 @@ inline int  acceleratorIsCommunicable(void *ptr)
 //////////////////////////////////////////////
 // SyCL acceleration
 //////////////////////////////////////////////
-#ifdef GRID_SYCL
-NAMESPACE_END(Grid);
-#include <CL/sycl.hpp>
-#include <CL/sycl/usm.hpp>
 
+#ifdef GRID_SYCL
 #define GRID_SYCL_LEVEL_ZERO_IPC
 
-#ifdef GRID_SYCL_LEVEL_ZERO_IPC
+NAMESPACE_END(Grid);
+#if 0
+#include <CL/sycl.hpp>
+#include <CL/sycl/usm.hpp>
 #include <level_zero/ze_api.h>
 #include <CL/sycl/backend/level_zero.hpp>
+#else
+#include <sycl/CL/sycl.hpp>
+#include <sycl/usm.hpp>
+#include <level_zero/ze_api.h>
+#include <sycl/ext/oneapi/backend/level_zero.hpp>
 #endif
+
 NAMESPACE_BEGIN(Grid);
 
 extern cl::sycl::queue *theGridAccelerator;
@@ -299,14 +305,14 @@ accelerator_inline int acceleratorSIMTlane(int Nsimd) {
      });	   			              \
     });
 
-#define accelerator_barrier(dummy) { printf(" theGridAccelerator::wait()\n");  theGridAccelerator->wait(); }
+#define accelerator_barrier(dummy) { theGridAccelerator->wait(); }
 
 inline void *acceleratorAllocShared(size_t bytes){ return malloc_shared(bytes,*theGridAccelerator);};
 inline void *acceleratorAllocDevice(size_t bytes){ return malloc_device(bytes,*theGridAccelerator);};
 inline void acceleratorFreeShared(void *ptr){free(ptr,*theGridAccelerator);};
 inline void acceleratorFreeDevice(void *ptr){free(ptr,*theGridAccelerator);};
 
-inline void acceleratorCopySynchronise(void) {  printf(" theCopyAccelerator::wait()\n"); theCopyAccelerator->wait(); }
+inline void acceleratorCopySynchronise(void) {  theCopyAccelerator->wait(); }
 inline void acceleratorCopyDeviceToDeviceAsynch(void *from,void *to,size_t bytes)  {  theCopyAccelerator->memcpy(to,from,bytes);}
 inline void acceleratorCopyToDevice(void *from,void *to,size_t bytes)  { theCopyAccelerator->memcpy(to,from,bytes); theCopyAccelerator->wait();}
 inline void acceleratorCopyFromDevice(void *from,void *to,size_t bytes){ theCopyAccelerator->memcpy(to,from,bytes); theCopyAccelerator->wait();}
