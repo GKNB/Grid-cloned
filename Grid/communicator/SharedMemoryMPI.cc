@@ -29,6 +29,7 @@ Author: Christoph Lehner <christoph@lhnr.de>
 
 #include <Grid/GridCore.h>
 #include <pwd.h>
+#include <syscall.h>
 
 #ifdef __linux__
 #include <syscall.h>
