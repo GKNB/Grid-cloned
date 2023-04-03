@@ -603,6 +603,7 @@ int main(int argc, char **argv) {
   HMCparams.NoMetropolisUntil= 0;
   HMCparams.StartingType     = user_params.StartingType;
   HMCparams.MetropolisTest = user_params.MetropolisTest;
+  HMCparams.PerformRandomShift = false;
   HMCparams.MD = MD;
   HMCWrapper TheHMC(HMCparams);
 

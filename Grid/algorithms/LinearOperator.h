@@ -542,6 +542,7 @@ public:
       (*this)(in[i], out[i]);
     }
   }
+  virtual ~LinearFunction(){}  
 };
 
 template<class Field> class IdentityLinearFunction : public LinearFunction<Field> {
@@ -558,6 +559,7 @@ public:
 template<class Field> class OperatorMultiFunction {
 public:
   virtual void operator() (LinearOperatorBase<Field> &Linop, const Field &in, std::vector<Field> &out) = 0;
+  virtual ~OperatorMultiFunction(){}
 };
 
 // FIXME : To think about

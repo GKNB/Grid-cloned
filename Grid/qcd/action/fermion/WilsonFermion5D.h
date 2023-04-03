@@ -162,7 +162,9 @@ public:
 		  GridCartesian         &FourDimGrid,
 		  GridRedBlackCartesian &FourDimRedBlackGrid,
 		  double _M5,const ImplParams &p= ImplParams());
-
+  
+  virtual ~WilsonFermion5D(){}
+  
   virtual void DirichletBlock(const Coordinate & block)
   {
   }

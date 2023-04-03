@@ -1,3 +1,4 @@
+
 #include <Grid/GridCore.h>
 
 NAMESPACE_BEGIN(Grid);
@@ -28,6 +29,13 @@ void MemoryManager::PrintBytes(void)
   std::cout << " MemoryManager : "<<(cacheBytes>>20) <<" acc cache Mbytes "<<std::endl;
   cacheBytes = CacheBytes[Shared];
   std::cout << " MemoryManager : "<<(cacheBytes>>20) <<" shared cache Mbytes "<<std::endl;
+
+  cacheBytes = CacheBytes[CpuSmall];
+  std::cout << " MemoryManager : "<<(cacheBytes>>20) <<" cpu small cache Mbytes "<<std::endl;
+  cacheBytes = CacheBytes[AccSmall];
+  std::cout << " MemoryManager : "<<(cacheBytes>>20) <<" acc small cache Mbytes "<<std::endl;
+  cacheBytes = CacheBytes[SharedSmall];
+  std::cout << " MemoryManager : "<<(cacheBytes>>20) <<" shared small cache Mbytes "<<std::endl;
   
 #ifdef GRID_CUDA
   cuda_mem();

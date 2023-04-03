@@ -582,14 +582,14 @@ esac
 #########################################################
 ######################  set GPU device to rank in node ##
 #########################################################
-AC_ARG_ENABLE([setdevice],[AS_HELP_STRING([--enable-setdevice | --disable-setdevice],[Set GPU to rank in node with cudaSetDevice or similar])],[ac_SETDEVICE=${enable_SETDEVICE}],[ac_SETDEVICE=no])
+AC_ARG_ENABLE([setdevice],[AS_HELP_STRING([--enable-setdevice | --disable-setdevice],[Set GPU to rank in node with cudaSetDevice or similar])],[ac_SETDEVICE=${enable_setdevice}],[ac_SETDEVICE=no])
 case ${ac_SETDEVICE} in
     yes)
 	echo ENABLE SET DEVICE
     ;;
     *)
      AC_DEFINE([GRID_DEFAULT_GPU],[1],[GRID_DEFAULT_GPU] )
-   	echo DISABLE SET DEVICE
+   	echo DISABLE SET DEVICE WITH ac_SETDEVICE = ${ac_SETDEVICE}
     ;;
 esac
 
