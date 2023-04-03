@@ -291,8 +291,9 @@ accelerator_inline int acceleratorSIMTlane(int Nsimd) {
       unsigned long unum1 = num1;					\
       unsigned long unum2 = num2;					\
       if(nt < 8)nt=8;							\
+      unsigned long unum1_use = ((unum1 + nt - 1)/nt) * nt     ; /*round up s.t. divisible by nt*/ \
       cl::sycl::range<3> local {nt,1,nsimd};				\
-      cl::sycl::range<3> global{unum1,unum2,nsimd};			\
+      cl::sycl::range<3> global{unum1_use,unum2,nsimd};			\
       cgh.parallel_for(					\
       cl::sycl::nd_range<3>(global,local), \
       [=] (cl::sycl::nd_item<3> item) /*mutable*/     \
@@ -301,7 +302,7 @@ accelerator_inline int acceleratorSIMTlane(int Nsimd) {
       auto iter1    = item.get_global_id(0);	      \
       auto iter2    = item.get_global_id(1);	      \
       auto lane     = item.get_global_id(2);	      \
-      { __VA_ARGS__ };				      \
+      if(iter1<unum1){ __VA_ARGS__ };		      \
      });	   			              \
     });
 
