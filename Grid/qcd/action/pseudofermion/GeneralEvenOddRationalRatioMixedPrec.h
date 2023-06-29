@@ -37,7 +37,8 @@ NAMESPACE_BEGIN(Grid);
     // Generic rational approximation for ratios of operators utilizing the mixed precision multishift algorithm
     // cf. GeneralEvenOddRational.h for details
     /////////////////////////////////////////////////////////////////////////////////////////////////////////////
-      
+
+    //If the operator doesn't have a double2 implementation, ImplD2 can be set equal to ImplD and the same for the associated operators
     template<class ImplD, class ImplF, class ImplD2>
     class GeneralEvenOddRatioRationalMixedPrecPseudoFermionAction : public GeneralEvenOddRatioRationalPseudoFermionAction<ImplD> {
     private:
@@ -59,40 +60,52 @@ NAMESPACE_BEGIN(Grid);
 
       //Allow derived classes to override the multishift CG
       virtual void multiShiftInverse(bool numerator, const MultiShiftFunction &approx, const Integer MaxIter, const FermionFieldD &in, FermionFieldD &out){
-#if 0
-	SchurDifferentiableOperator<ImplD> schurOp(numerator ? NumOpD : DenOpD);
-	ConjugateGradientMultiShift<FermionFieldD> msCG(MaxIter, approx);
-	msCG(schurOp,in, out);
-#else
-	SchurDifferentiableOperator<ImplD2> schurOpD2(numerator ? NumOpD2 : DenOpD2);
-	SchurDifferentiableOperator<ImplF> schurOpF(numerator ? NumOpF : DenOpF);
-	FermionFieldD2 inD2(NumOpD2.FermionRedBlackGrid());
-	FermionFieldD2 outD2(NumOpD2.FermionRedBlackGrid());
-
-	// Action better with higher precision?
-	ConjugateGradientMultiShiftMixedPrec<FermionFieldD2, FermionFieldF> msCG(MaxIter, approx, NumOpF.FermionRedBlackGrid(), schurOpF, ReliableUpdateFreq);
-	precisionChange(inD2,in);
-	std::cout << "msCG single solve "<<norm2(inD2)<<" " <<norm2(in)<<std::endl;
-	msCG(schurOpD2, inD2, outD2);
-	precisionChange(out,outD2);
-#endif
-      }
-      virtual void multiShiftInverse(bool numerator, const MultiShiftFunction &approx, const Integer MaxIter, const FermionFieldD &in, std::vector<FermionFieldD> &out_elems, FermionFieldD &out){
-	SchurDifferentiableOperator<ImplD2> schurOpD2(numerator ? NumOpD2 : DenOpD2);
-	SchurDifferentiableOperator<ImplF>  schurOpF (numerator ? NumOpF  : DenOpF);
-
-	FermionFieldD2 inD2(NumOpD2.FermionRedBlackGrid());
-	FermionFieldD2 outD2(NumOpD2.FermionRedBlackGrid());
-	std::vector<FermionFieldD2> out_elemsD2(out_elems.size(),NumOpD2.FermionRedBlackGrid());
-	ConjugateGradientMultiShiftMixedPrecCleanup<FermionFieldD2, FermionFieldF> msCG(MaxIter, approx, NumOpF.FermionRedBlackGrid(), schurOpF, ReliableUpdateFreq);
-	precisionChange(inD2,in);
-	std::cout << "msCG in "<<norm2(inD2)<<" " <<norm2(in)<<std::endl;
-	msCG(schurOpD2, inD2, out_elemsD2, outD2);
-	precisionChange(out,outD2);
-	for(int i=0;i<out_elems.size();i++){
-	  precisionChange(out_elems[i],out_elemsD2[i]);
+	if(NumOpD2.FermionRedBlackGrid() == NumOpF.FermionRedBlackGrid() ){ //D2 is a double2 implementation
+	  SchurDifferentiableOperator<ImplD2> schurOpD2(numerator ? NumOpD2 : DenOpD2);
+	  SchurDifferentiableOperator<ImplF> schurOpF(numerator ? NumOpF : DenOpF);
+	  FermionFieldD2 inD2(NumOpD2.FermionRedBlackGrid());
+	  FermionFieldD2 outD2(NumOpD2.FermionRedBlackGrid());
+	  
+	  // Action better with higher precision?
+	  ConjugateGradientMultiShiftMixedPrec<FermionFieldD2, FermionFieldF> msCG(MaxIter, approx, NumOpF.FermionRedBlackGrid(), schurOpF, ReliableUpdateFreq);
+	  precisionChange(inD2,in);
+	  std::cout << "msCG single solve (double2,single) "<<norm2(inD2)<<" " <<norm2(in)<<std::endl;
+	  msCG(schurOpD2, inD2, outD2);
+	  precisionChange(out,outD2);
+	}else{
+	  SchurDifferentiableOperator<ImplD> schurOpD(numerator ? NumOpD : DenOpD);
+	  SchurDifferentiableOperator<ImplF> schurOpF(numerator ? NumOpF : DenOpF);
+	  ConjugateGradientMultiShiftMixedPrec<FermionFieldD, FermionFieldF> msCG(MaxIter, approx, NumOpF.FermionRedBlackGrid(), schurOpF, ReliableUpdateFreq);
+	  std::cout << "msCG single solve (double,single) " <<norm2(in)<<std::endl;
+	  msCG(schurOpD, in, out);
 	}
       }
+      virtual void multiShiftInverse(bool numerator, const MultiShiftFunction &approx, const Integer MaxIter, const FermionFieldD &in, std::vector<FermionFieldD> &out_elems, FermionFieldD &out){
+	if(NumOpD2.FermionRedBlackGrid() == NumOpF.FermionRedBlackGrid() ){ //D2 is a double2 implementation
+	  SchurDifferentiableOperator<ImplD2> schurOpD2(numerator ? NumOpD2 : DenOpD2);
+	  SchurDifferentiableOperator<ImplF>  schurOpF (numerator ? NumOpF  : DenOpF);
+
+	  FermionFieldD2 inD2(NumOpD2.FermionRedBlackGrid());
+	  FermionFieldD2 outD2(NumOpD2.FermionRedBlackGrid());
+	  std::vector<FermionFieldD2> out_elemsD2(out_elems.size(),NumOpD2.FermionRedBlackGrid());
+	  ConjugateGradientMultiShiftMixedPrecCleanup<FermionFieldD2, FermionFieldF> msCG(MaxIter, approx, NumOpF.FermionRedBlackGrid(), schurOpF, ReliableUpdateFreq);
+	  precisionChange(inD2,in);
+	  std::cout << "msCG (double2,single) in "<<norm2(inD2)<<" " <<norm2(in)<<std::endl;
+	  msCG(schurOpD2, inD2, out_elemsD2, outD2);
+	  precisionChange(out,outD2);
+	  for(int i=0;i<out_elems.size();i++){
+	    precisionChange(out_elems[i],out_elemsD2[i]);
+	  }
+	}else{
+	  SchurDifferentiableOperator<ImplD> schurOpD(numerator ? NumOpD : DenOpD);
+	  SchurDifferentiableOperator<ImplF> schurOpF(numerator ? NumOpF : DenOpF);
+	  ConjugateGradientMultiShiftMixedPrec<FermionFieldD, FermionFieldF> msCG(MaxIter, approx, NumOpF.FermionRedBlackGrid(), schurOpF, ReliableUpdateFreq);
+	  std::cout << "msCG (double,single) in " <<norm2(in)<<std::endl;
+	  msCG(schurOpD, in, out_elems, out);
+	}
+      }
+
+	
       //Allow derived classes to override the gauge import
       virtual void ImportGauge(const typename ImplD::GaugeField &Ud){
 
