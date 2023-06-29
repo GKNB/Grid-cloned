@@ -37,72 +37,49 @@ NAMESPACE_BEGIN(Grid);
     // Generic rational approximation for ratios of operators utilizing the mixed precision multishift algorithm
     // cf. GeneralEvenOddRational.h for details
     /////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-    //If the operator doesn't have a double2 implementation, ImplD2 can be set equal to ImplD and the same for the associated operators
-    template<class ImplD, class ImplF, class ImplD2>
+    template<class ImplD, class ImplF>
     class GeneralEvenOddRatioRationalMixedPrecPseudoFermionAction : public GeneralEvenOddRatioRationalPseudoFermionAction<ImplD> {
     private:
-      typedef typename ImplD2::FermionField FermionFieldD2;
       typedef typename ImplD::FermionField FermionFieldD;
       typedef typename ImplF::FermionField FermionFieldF;
 
       FermionOperator<ImplD> & NumOpD;
       FermionOperator<ImplD> & DenOpD;
 
-      FermionOperator<ImplD2> & NumOpD2;
-      FermionOperator<ImplD2> & DenOpD2;
-     
       FermionOperator<ImplF> & NumOpF;
       FermionOperator<ImplF> & DenOpF;
 
       Integer ReliableUpdateFreq;
     protected:
 
+      //Action evaluation
       //Allow derived classes to override the multishift CG
       virtual void multiShiftInverse(bool numerator, const MultiShiftFunction &approx, const Integer MaxIter, const FermionFieldD &in, FermionFieldD &out){
-	if(NumOpD2.FermionRedBlackGrid() == NumOpF.FermionRedBlackGrid() ){ //D2 is a double2 implementation
-	  SchurDifferentiableOperator<ImplD2> schurOpD2(numerator ? NumOpD2 : DenOpD2);
-	  SchurDifferentiableOperator<ImplF> schurOpF(numerator ? NumOpF : DenOpF);
-	  FermionFieldD2 inD2(NumOpD2.FermionRedBlackGrid());
-	  FermionFieldD2 outD2(NumOpD2.FermionRedBlackGrid());
-	  
-	  // Action better with higher precision?
-	  ConjugateGradientMultiShiftMixedPrec<FermionFieldD2, FermionFieldF> msCG(MaxIter, approx, NumOpF.FermionRedBlackGrid(), schurOpF, ReliableUpdateFreq);
-	  precisionChange(inD2,in);
-	  std::cout << "msCG single solve (double2,single) "<<norm2(inD2)<<" " <<norm2(in)<<std::endl;
-	  msCG(schurOpD2, inD2, outD2);
-	  precisionChange(out,outD2);
-	}else{
-	  SchurDifferentiableOperator<ImplD> schurOpD(numerator ? NumOpD : DenOpD);
-	  SchurDifferentiableOperator<ImplF> schurOpF(numerator ? NumOpF : DenOpF);
-	  ConjugateGradientMultiShiftMixedPrec<FermionFieldD, FermionFieldF> msCG(MaxIter, approx, NumOpF.FermionRedBlackGrid(), schurOpF, ReliableUpdateFreq);
-	  std::cout << "msCG single solve (double,single) " <<norm2(in)<<std::endl;
-	  msCG(schurOpD, in, out);
-	}
-      }
-      virtual void multiShiftInverse(bool numerator, const MultiShiftFunction &approx, const Integer MaxIter, const FermionFieldD &in, std::vector<FermionFieldD> &out_elems, FermionFieldD &out){
-	if(NumOpD2.FermionRedBlackGrid() == NumOpF.FermionRedBlackGrid() ){ //D2 is a double2 implementation
-	  SchurDifferentiableOperator<ImplD2> schurOpD2(numerator ? NumOpD2 : DenOpD2);
-	  SchurDifferentiableOperator<ImplF>  schurOpF (numerator ? NumOpF  : DenOpF);
+#if 1
+	SchurDifferentiableOperator<ImplD> schurOp(numerator ? NumOpD : DenOpD);
+	ConjugateGradientMultiShift<FermionFieldD> msCG(MaxIter, approx);
+	msCG(schurOp,in, out);
+#else
+	SchurDifferentiableOperator<ImplD> schurOpD(numerator ? NumOpD : DenOpD);
+	SchurDifferentiableOperator<ImplF> schurOpF(numerator ? NumOpF : DenOpF);
+	FermionFieldD inD(NumOpD.FermionRedBlackGrid());
+	FermionFieldD outD(NumOpD.FermionRedBlackGrid());
 
-	  FermionFieldD2 inD2(NumOpD2.FermionRedBlackGrid());
-	  FermionFieldD2 outD2(NumOpD2.FermionRedBlackGrid());
-	  std::vector<FermionFieldD2> out_elemsD2(out_elems.size(),NumOpD2.FermionRedBlackGrid());
-	  ConjugateGradientMultiShiftMixedPrecCleanup<FermionFieldD2, FermionFieldF> msCG(MaxIter, approx, NumOpF.FermionRedBlackGrid(), schurOpF, ReliableUpdateFreq);
-	  precisionChange(inD2,in);
-	  std::cout << "msCG (double2,single) in "<<norm2(inD2)<<" " <<norm2(in)<<std::endl;
-	  msCG(schurOpD2, inD2, out_elemsD2, outD2);
-	  precisionChange(out,outD2);
-	  for(int i=0;i<out_elems.size();i++){
-	    precisionChange(out_elems[i],out_elemsD2[i]);
-	  }
-	}else{
-	  SchurDifferentiableOperator<ImplD> schurOpD(numerator ? NumOpD : DenOpD);
-	  SchurDifferentiableOperator<ImplF> schurOpF(numerator ? NumOpF : DenOpF);
-	  ConjugateGradientMultiShiftMixedPrec<FermionFieldD, FermionFieldF> msCG(MaxIter, approx, NumOpF.FermionRedBlackGrid(), schurOpF, ReliableUpdateFreq);
-	  std::cout << "msCG (double,single) in " <<norm2(in)<<std::endl;
-	  msCG(schurOpD, in, out_elems, out);
-	}
+	// Action better with higher precision?
+	ConjugateGradientMultiShiftMixedPrec<FermionFieldD, FermionFieldF> msCG(MaxIter, approx, NumOpF.FermionRedBlackGrid(), schurOpF, ReliableUpdateFreq);
+	msCG(schurOpD, in, out);
+#endif
+      }
+      //Force evaluation
+      virtual void multiShiftInverse(bool numerator, const MultiShiftFunction &approx, const Integer MaxIter, const FermionFieldD &in, std::vector<FermionFieldD> &out_elems, FermionFieldD &out){
+	SchurDifferentiableOperator<ImplD> schurOpD(numerator ? NumOpD : DenOpD);
+	SchurDifferentiableOperator<ImplF>  schurOpF(numerator ? NumOpF  : DenOpF);
+
+	FermionFieldD inD(NumOpD.FermionRedBlackGrid());
+	FermionFieldD outD(NumOpD.FermionRedBlackGrid());
+	std::vector<FermionFieldD> out_elemsD(out_elems.size(),NumOpD.FermionRedBlackGrid());
+	ConjugateGradientMultiShiftMixedPrecCleanup<FermionFieldD, FermionFieldF> msCG(MaxIter, approx, NumOpF.FermionRedBlackGrid(), schurOpF, ReliableUpdateFreq);
+	msCG(schurOpD, in, out_elems, out);
       }
 
 	
@@ -110,32 +87,25 @@ NAMESPACE_BEGIN(Grid);
       virtual void ImportGauge(const typename ImplD::GaugeField &Ud){
 
 	typename ImplF::GaugeField Uf(NumOpF.GaugeGrid());
-	typename ImplD2::GaugeField Ud2(NumOpD2.GaugeGrid());
 	precisionChange(Uf, Ud);
-	precisionChange(Ud2, Ud);
 
-	std::cout << "Importing "<<norm2(Ud)<<" "<< norm2(Uf)<<" " << norm2(Ud2)<<std::endl;
+	std::cout << "Importing "<<norm2(Ud)<<" "<< norm2(Uf)<<" " <<std::endl;
 	
 	NumOpD.ImportGauge(Ud);
 	DenOpD.ImportGauge(Ud);
 
 	NumOpF.ImportGauge(Uf);
 	DenOpF.ImportGauge(Uf);
-
-	NumOpD2.ImportGauge(Ud2);
-	DenOpD2.ImportGauge(Ud2);
       }
       
     public:
       GeneralEvenOddRatioRationalMixedPrecPseudoFermionAction(FermionOperator<ImplD>  &_NumOpD, FermionOperator<ImplD>  &_DenOpD, 
 							      FermionOperator<ImplF>  &_NumOpF, FermionOperator<ImplF>  &_DenOpF, 
-							      FermionOperator<ImplD2>  &_NumOpD2, FermionOperator<ImplD2>  &_DenOpD2, 
 							      const RationalActionParams & p, Integer _ReliableUpdateFreq
 							      ) : GeneralEvenOddRatioRationalPseudoFermionAction<ImplD>(_NumOpD, _DenOpD, p),
 								  ReliableUpdateFreq(_ReliableUpdateFreq),
 								  NumOpD(_NumOpD), DenOpD(_DenOpD),
-								  NumOpF(_NumOpF), DenOpF(_DenOpF),
-								  NumOpD2(_NumOpD2), DenOpD2(_DenOpD2)
+								  NumOpF(_NumOpF), DenOpF(_DenOpF)
       {}
       
       virtual std::string action_name(){return "GeneralEvenOddRatioRationalMixedPrecPseudoFermionAction";}
