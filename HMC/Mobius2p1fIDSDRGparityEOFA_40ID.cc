@@ -581,7 +581,7 @@ int main(int argc, char **argv) {
   typedef typename FermionActionF::Impl_t FermionImplPolicyF;
   typedef typename FermionActionF::FermionField FermionFieldF;
 
-  typedef GeneralEvenOddRatioRationalMixedPrecPseudoFermionAction<FermionImplPolicyD,FermionImplPolicyF,FermionImplPolicyD> MixedPrecRHMC;
+  typedef GeneralEvenOddRatioRationalMixedPrecPseudoFermionAction<FermionImplPolicyD,FermionImplPolicyF> MixedPrecRHMC;
   typedef GeneralEvenOddRatioRationalPseudoFermionAction<FermionImplPolicyD> DoublePrecRHMC;
 
   //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::

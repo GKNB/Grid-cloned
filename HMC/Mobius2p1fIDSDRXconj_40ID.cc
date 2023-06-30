@@ -790,13 +790,12 @@ int main(int argc, char **argv) {
   typedef typename GparityWilsonTMFermionD::Impl_t GPfermionImplPolicyD;
   typedef typename GparityWilsonTMFermionF::Impl_t GPfermionImplPolicyF;
     
-  typedef GeneralEvenOddRatioRationalMixedPrecPseudoFermionAction<GPfermionImplPolicyD,GPfermionImplPolicyF,GPfermionImplPolicyD> MixedPrecRHMC;
+  typedef GeneralEvenOddRatioRationalMixedPrecPseudoFermionAction<GPfermionImplPolicyD,GPfermionImplPolicyF> MixedPrecRHMC;
   typedef GeneralEvenOddRatioRationalPseudoFermionAction<GPfermionImplPolicyD> DoublePrecRHMC;
   
   //DoublePrecRHMC Quotient_DSDR(Denominator_DSDR_D, Numerator_DSDR_D, rat_act_params_DSDR);
   MixedPrecRHMC Quotient_DSDR(Denominator_DSDR_D, Numerator_DSDR_D,
 			      Denominator_DSDR_F, Numerator_DSDR_F,
-			      Denominator_DSDR_D, Numerator_DSDR_D,
 			      rat_act_params_DSDR, user_params.rat_quo_DSDR.reliable_update_freq);
   Level2.push_back(&Quotient_DSDR);
   
