@@ -47,11 +47,12 @@ Lattice<iScalar<iScalar<iScalar<Vec> > > > Determinant(const Lattice<iScalar<iSc
     Eigen::MatrixXcd EigenU = Eigen::MatrixXcd::Zero(N,N);
     Coordinate lcoor;
     grid->LocalIndexToLocalCoor(site, lcoor);
-    iScalar<iScalar<iMatrix<ComplexD, N> > > Us;
+    iScalar<iScalar<iMatrix<typename Vec::scalar_type, N> > > Us;
     peekLocalSite(Us, Umu_v, lcoor);
     for(int i=0;i<N;i++){
       for(int j=0;j<N;j++){
-	EigenU(i,j) = Us()()(i,j);
+	auto const &Usij = Us()()(i,j);
+	EigenU(i,j) = std::complex<double>(Usij.real(),Usij.imag());
       }}
     ComplexD detD  = EigenU.determinant();
     typename Vec::scalar_type det(detD.real(),detD.imag());
