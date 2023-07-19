@@ -214,47 +214,6 @@ int main (int argc, char ** argv)
     std::cout << i << " " << norm2(tmp) << std::endl;
   }
 
-
-
-
-#if 0
-  Gamma C = Gamma(Gamma::Algebra::MinusGammaY) * Gamma(Gamma::Algebra::GammaT);
-  Gamma g5 = Gamma(Gamma::Algebra::Gamma5);
-  Gamma X = C*g5;
-
-  std::cout << "Comparing eigenvectors: " << std::endl;
-  for(int i=0;i<std::min(Nconv_reg, Nconv_Xconj);i++){
-    OneFlavorFermionField tmp(FrbGrid);
-    HermOp_Xconj.HermOp(evec_Xconj[i], tmp);
-    tmp = tmp - eval_Xconj[i]*evec_Xconj[i];
-    std::cout << "Test Xconj evec is an evec (expect 0): " << norm2(tmp) << "  and norm2 of evec should be 1/2: " << norm2(evec_Xconj[i]) << std::endl;
-
-    TwoFlavorFermionField tmp2f(FrbGrid);
-    HermOp_reg.HermOp(evec_reg[i], tmp2f);
-    tmp2f = tmp2f - eval_reg[i]*evec_reg[i];
-    std::cout << "Test Gparity evec is an evec (expect 0): " << norm2(tmp2f) << "  and norm2 of evec should be 1: " << norm2(evec_reg[i]) << std::endl;
-
-    //We need to phase-rotate the regular evecs into X-conjugate vectors
-    OneFlavorFermionField v0 = PeekIndex<GparityFlavourIndex>(evec_reg[i],0);
-    OneFlavorFermionField v1 = PeekIndex<GparityFlavourIndex>(evec_reg[i],1);
-    OneFlavorFermionField Xv1star = X*conjugate(v1);
-    ComplexD z = innerProduct(v0, Xv1star);
-    ComplexD alpha = ComplexD(0.5)/z;
-
-    TwoFlavorFermionField w = 1./sqrt(alpha) * evec_reg[i];
-    //w should be X-conjugate; check
-    OneFlavorFermionField w0 = PeekIndex<GparityFlavourIndex>(w,0);
-    OneFlavorFermionField w1 = PeekIndex<GparityFlavourIndex>(w,1);
-    tmp = w1 + X*conjugate(w0);
-    std::cout << "Converted regular evec to X-conjugate: check (expect 0): " << norm2(tmp) << std::endl;
-
-    tmp = w0 - evec_Xconj[i];
-    OneFlavorFermionField tmp2 = w0 + evec_Xconj[i];
-    std::cout << "Evec " << i << " difference: " << norm2(tmp) << " sum: " << norm2(tmp2) << std::endl;
-  }
-#endif
-
-
   std::cout << "Done" << std::endl;
   Grid_finalize();
 }
