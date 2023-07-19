@@ -66,6 +66,7 @@ NAMESPACE_CHECK(BiCGSTAB);
 #include <Grid/algorithms/iterative/FlexibleCommunicationAvoidingGeneralisedMinimalResidual.h>
 #include <Grid/algorithms/iterative/MixedPrecisionFlexibleGeneralisedMinimalResidual.h>
 #include <Grid/algorithms/iterative/ImplicitlyRestartedLanczos.h>
+#include <Grid/algorithms/iterative/ImplicitlyRestartedBlockLanczos.h>
 #include <Grid/algorithms/iterative/PowerMethod.h>
 
 NAMESPACE_CHECK(PowerMethod);

@@ -139,6 +139,9 @@ private:
   GridRedBlackCartesian * f_grid;
   GridRedBlackCartesian * sf_grid;
   int mrhs;
+
+  innerProductImplementation<Field> &_innerProdImpl;
+
   /////////////////////////
   // BLAS objects
   /////////////////////////
@@ -166,7 +169,8 @@ public:
                                  int _Nm,    // total vecs
                                  RealD _eresid, // resid in lmd deficit 
                                  int _MaxIter,  // Max iterations
-                                 IRBLdiagonalisation _diagonalisation = IRBLdiagonaliseWithEigen)
+                                 IRBLdiagonalisation _diagonalisation = IRBLdiagonaliseWithEigen,
+				 innerProductImplementation<Field> &innerProdImpl = innerProductImplementation<Field>::defaultImpl())
    : _Linop(Linop),   _SLinop(SLinop),  _poly(poly),sf_grid(SFrbGrid),f_grid(FrbGrid),
       Nstop(_Nstop), Nconv_test_interval(_Nconv_test_interval), mrhs(_mrhs),
       Nu(_Nu), Nk(_Nk), Nm(_Nm), 
@@ -174,15 +178,15 @@ public:
       //eresid(_eresid),  MaxIter(10),
       eresid(_eresid),  MaxIter(_MaxIter),
       diagonalisation(_diagonalisation),split_test(0),
-      Nevec_acc(_Nu)
+      Nevec_acc(_Nu), _innerProdImpl(innerProdImpl) 
   { assert( (Nk%Nu==0) && (Nm%Nu==0) ); };
 
   ////////////////////////////////
   // Helpers
   ////////////////////////////////
-  static RealD normalize(Field& v, int if_print=0) 
+  RealD normalize(Field& v, int if_print=0)
   {
-    RealD nn = norm2(v);
+    RealD nn = _innerProdImpl.norm2(v);
     nn = sqrt(nn);
     v = v * (1.0/nn);
     return nn;
@@ -195,14 +199,14 @@ public:
     ComplexD ip;
     
     for(int j=0; j<k; ++j){
-      ip = innerProduct(evec[j],w); 
+      ip = _innerProdImpl.innerProduct(evec[j],w); 
       if(if_print) 
-      if( norm(ip)/norm2(w) > 1e-14)
+      if( norm(ip)/_innerProdImpl.norm2(w) > 1e-14)
       Glog<<"orthogonalize before: "<<j<<" of "<<k<<" "<< ip <<std::endl;
       w = w - ip * evec[j];
       if(if_print) {
-        ip = innerProduct(evec[j],w); 
-        if( norm(ip)/norm2(w) > 1e-14)
+        ip = _innerProdImpl.innerProduct(evec[j],w); 
+        if( norm(ip)/_innerProdImpl.norm2(w) > 1e-14)
           Glog<<"orthogonalize after: "<<j<<" of "<<k<<" "<< ip <<std::endl;
       }
     }
@@ -221,7 +225,7 @@ public:
     
     for(int j=0; j<k; ++j){
     for(int i=0; i<_Nu; ++i){
-      ip = innerProduct(evec[j],w[i]); 
+      ip = _innerProdImpl.innerProduct(evec[j],w[i]); 
       w[i] = w[i] - ip * evec[j];
     }}
     for(int i=0; i<_Nu; ++i)
@@ -324,7 +328,7 @@ public:
     MyComplex ip;
     
     for(int j=0; j<k; ++j){
-      ip = innerProduct(evec[j*Nu],w); 
+      ip = _innerProdImpl.innerProduct(evec[j*Nu],w); 
       w = w - ip * evec[j*Nu];
     }
     normalize(w);
@@ -421,10 +425,10 @@ cudaStat = cudaMallocManaged((void **)&evec_acc, Nevec_acc*sites*12*sizeof(CUDA_
   
     // set initial vector
     for (int i=0; i<Nu; ++i) {
-      Glog << "norm2(src[" << i << "])= "<< norm2(src[i]) << std::endl;
+      Glog << "norm2(src[" << i << "])= "<< _innerProdImpl.norm2(src[i]) << std::endl;
       evec[i] = src[i];
       orthogonalize(evec[i],evec,i);
-      Glog << "norm2(evec[" << i << "])= "<< norm2(evec[i]) << std::endl;
+      Glog << "norm2(evec[" << i << "])= "<< _innerProdImpl.norm2(evec[i]) << std::endl;
     }
     
     // initial Nblock_k steps
@@ -517,17 +521,17 @@ cudaStat = cudaMallocManaged((void **)&evec_acc, Nevec_acc*sites*12*sizeof(CUDA_
       for(int i=0; i<Nk; ++i){
 	
         _Linop.HermOp(B[i],v);
-	RealD vnum = real(innerProduct(B[i],v)); // HermOp.
-	RealD vden = norm2(B[i]);
+	RealD vnum = real(_innerProdImpl.innerProduct(B[i],v)); // HermOp.
+	RealD vden = _innerProdImpl.norm2(B[i]);
 	eval2[i] = vnum/vden;
 	v -= eval2[i]*B[i];
-	RealD vv = norm2(v);
+	RealD vv = _innerProdImpl.norm2(v);
         resid[i] = vv;
 	
 	std::cout.precision(13);
         std::cout << "[" << std::setw(4)<< std::setiosflags(std::ios_base::right) <<i<<"] ";
 	std::cout << "eval = "<<std::setw(20)<< std::setiosflags(std::ios_base::left)<< eval2[i];
-	std::cout << "   resid^2 = "<< std::setw(20)<< std::setiosflags(std::ios_base::right)<< vv<< std::endl;
+	std::cout << "   resid^2 = "<< std::setw(20)<< std::setiosflags(std::ios_base::right)<< vv<< " vs tol^2 = " << eresid*eresid << std::endl;
 	
 	// change the criteria as evals are supposed to be sorted, all evals smaller(larger) than Nstop should have converged
 	//if( (vv<eresid*eresid) && (i == Nconv) ){
@@ -596,6 +600,7 @@ cudaStat = cudaMallocManaged((void **)&evec_acc, Nevec_acc*sites*12*sizeof(CUDA_
     Glog <<" -- accept Nstop     = "<< Nstop <<" vectors"<< std::endl;
     Glog <<" -- size of eval     = "<< eval.size() << std::endl;
     Glog <<" -- size of evec     = "<< evec.size() << std::endl;
+    Glog <<" -- tolerance        = "<< eresid << std::endl;
     if ( diagonalisation == IRBLdiagonaliseWithEigen ) { 
       Glog << "Diagonalisation is Eigen "<< std::endl;
 #ifdef USE_LAPACK
@@ -634,10 +639,10 @@ cudaStat = cudaMallocManaged((void **)&evec_acc, Nevec_acc*sites*12*sizeof(CUDA_
   
     // set initial vector
     for (int i=0; i<Nu; ++i) {
-      Glog << "norm2(src[" << i << "])= "<< norm2(src[i]) << std::endl;
+      Glog << "norm2(src[" << i << "])= "<< _innerProdImpl.norm2(src[i]) << std::endl;
       evec[i] = src[i];
       orthogonalize(evec[i],evec,i);
-      Glog << "norm2(evec[" << i << "])= "<< norm2(evec[i]) << std::endl;
+      Glog << "norm2(evec[" << i << "])= "<< _innerProdImpl.norm2(evec[i]) << std::endl;
     }
 //    exit(-43);
     
@@ -695,17 +700,17 @@ cudaStat = cudaMallocManaged((void **)&evec_acc, Nevec_acc*sites*12*sizeof(CUDA_
           }
           
           _Linop.HermOp(B[0],v);
-          RealD vnum = real(innerProduct(B[0],v)); // HermOp.
-          RealD vden = norm2(B[0]);
+          RealD vnum = real(_innerProdImpl.innerProduct(B[0],v)); // HermOp.
+          RealD vden = _innerProdImpl.norm2(B[0]);
           eval2[j] = vnum/vden;
           v -= eval2[j]*B[0];
-          RealD vv = norm2(v);
+          RealD vv = _innerProdImpl.norm2(v);
           resid[j] = vv;
           
           std::cout.precision(13);
           std::cout << "[" << std::setw(4)<< std::setiosflags(std::ios_base::right) <<j<<"] ";
           std::cout << "eval = "<<std::setw(20)<< std::setiosflags(std::ios_base::left)<< eval2[j];
-          std::cout << "   resid^2 = "<< std::setw(20)<< std::setiosflags(std::ios_base::right)<< vv<< std::endl;
+          std::cout << "   resid^2 = "<< std::setw(20)<< std::setiosflags(std::ios_base::right)<< vv << " vs tol^2 = " << eresid*eresid << std::endl;
           
           // change the criteria as evals are supposed to be sorted, all evals smaller(larger) than Nstop should have converged
           //if( (vv<eresid*eresid) && (i == Nconv) ){
@@ -746,11 +751,11 @@ cudaStat = cudaMallocManaged((void **)&evec_acc, Nevec_acc*sites*12*sizeof(CUDA_
              Btmp[i] += evec[k]*Qt(k,i);
           }
           _Linop.HermOp(Btmp[i],v);
-          RealD vnum = real(innerProduct(Btmp[i],v)); // HermOp.
-          RealD vden = norm2(Btmp[i]);
+          RealD vnum = real(_innerProdImpl.innerProduct(Btmp[i],v)); // HermOp.
+          RealD vden = _innerProdImpl.norm2(Btmp[i]);
 //          eval2[j] = vnum/vden;
           v -= vnum/vden*Btmp[i];
-          RealD vv = norm2(v);
+          RealD vv = _innerProdImpl.norm2(v);
 //          resid[j] = vv;
           
           std::cout.precision(13);
@@ -794,7 +799,7 @@ private:
 
     Real beta;
 
-    Glog << "Using split grid"<< std::endl;
+    Glog << "Using split grid Nu=" << Nu << " mrhs=" << mrhs << " Nu/mrhs=" << Nu/mrhs << std::endl;
 //   LatticeGaugeField s_Umu(SGrid);
    assert((Nu%mrhs)==0);
    std::vector<Field>   in(mrhs,f_grid);
@@ -827,7 +832,7 @@ if(split_test){
     }
    for (int u=0; u<Nu; ++u) {
 	 w_copy[u] -= w[u];
-    Glog << "diff(split - non_split) "<<u<<" " << norm2(w_copy[u]) << std::endl;
+    Glog << "diff(split - non_split) "<<u<<" " << _innerProdImpl.norm2(w_copy[u]) << std::endl;
     Glog << "Split grid testing done"<< std::endl;
    }
    split_test=0;
@@ -854,7 +859,7 @@ if(split_test){
     //}
     for (int u=0; u<Nu; ++u) {
       for (int k=L+u; k<R; ++k) {
-        lmd[u][k] = innerProduct(evec[k],w[u]);  // lmd = transpose of alpha
+        lmd[u][k] = _innerProdImpl.innerProduct(evec[k],w[u]);  // lmd = transpose of alpha
 //        Glog <<"lmd "<<u<<" "<<k<<lmd[u][k] -conjugate(innerProduct(evec[u+L],w[k-L]))<<std::endl;
         lmd[k-L][u+L] = conjugate(lmd[u][k]);     // force hermicity
       }
@@ -898,7 +903,7 @@ if(split_test){
     for (int u=0; u<Nu; ++u) {
       //for (int v=0; v<Nu; ++v) {
       for (int v=u; v<Nu; ++v) {
-        lme[u][L+v] = innerProduct(w[u],w_copy[v]);
+        lme[u][L+v] = _innerProdImpl.innerProduct(w[u],w_copy[v]);
       }
       lme[u][L+u] = real(lme[u][L+u]);  // force diagonal to be real
     }
@@ -906,7 +911,7 @@ if(split_test){
     
     for (int u=0; u<Nu; ++u) {
 //      Glog << "norm2(w[" << u << "])= "<< norm2(w[u]) << std::endl;
-      assert (!isnan(norm2(w[u])));
+      assert (!isnan(_innerProdImpl.norm2(w[u])));
       for (int k=L+u; k<R; ++k) {
         Glog <<" In block "<< b << "," <<" beta[" << u << "," << k-L << "] = " << lme[u][k] << std::endl;
       }
