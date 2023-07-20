@@ -87,7 +87,7 @@ struct MemoryStatus {
 
 
 class MemoryManager {
-private:
+protected:
 
   ////////////////////////////////////////////////////////////
   // For caching recently freed allocations
@@ -157,7 +157,7 @@ private:
     return stat;
   };
   
- private:
+ protected:
 #ifndef GRID_UVM
   //////////////////////////////////////////////////////////////////////
   // Data tables for ViewCache
@@ -186,7 +186,6 @@ private:
   // Device motion
   /////////////////////////////////////////////////
   static void  Create(uint64_t CpuPtr,size_t bytes,ViewMode mode,ViewAdvise hint);
-  static void  EvictVictims(uint64_t bytes); // Frees up <bytes>
   static void  Evict(AcceleratorViewEntry &AccCache);
   static void  Flush(AcceleratorViewEntry &AccCache);
   static void  Clone(AcceleratorViewEntry &AccCache);
@@ -219,6 +218,9 @@ private:
   static void  ViewClose(void* CpuPtr,ViewMode mode);
   static void *ViewOpen (void* CpuPtr,size_t bytes,ViewMode mode,ViewAdvise hint);
 
+#ifndef GRID_UVM
+  static void  EvictVictims(uint64_t bytes); // Frees up <bytes>
+#endif
 };
 
 NAMESPACE_END(Grid);
