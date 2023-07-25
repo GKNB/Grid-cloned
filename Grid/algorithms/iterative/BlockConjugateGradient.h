@@ -619,6 +619,10 @@ void BlockCGrQsolveVec(LinearOperatorBase<Field> &Linop, const std::vector<Field
     
     //5. X  = X + D MC
     m_tmp     = m_M * m_C;
+
+    //std::cout << GridLogMessage << k << " beta=" << std::endl << m_M << std::endl;
+    std::cout << GridLogIterative << k << " beta*C=" << std::endl << m_tmp << std::endl;
+    
     sliceMaddTimer.Start();
     MaddMatrix(X,m_tmp, D,X);     
     sliceMaddTimer.Stop();
@@ -631,7 +635,7 @@ void BlockCGrQsolveVec(LinearOperatorBase<Field> &Linop, const std::vector<Field
     ThinQRfact (m_rr, m_S, m_Sinv, Q, tmp);
     QRTimer.Stop();
     
-    //7. D  = Q + D S^dag
+    //7. D  = Q + D S^dag     (update search direction)
     m_tmp = m_S.adjoint();
     sliceMaddTimer.Start();
     MaddMatrix(D,m_tmp,D,Q);
@@ -645,6 +649,7 @@ void BlockCGrQsolveVec(LinearOperatorBase<Field> &Linop, const std::vector<Field
      *********************
      */
     m_rr = m_C.adjoint() * m_C;
+    //std::cout << GridLogMessage << "R=" << std::endl << m_rr << std::endl;
 
     RealD max_resid=0;
     RealD rrsum=0;

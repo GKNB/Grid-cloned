@@ -32,16 +32,37 @@ Author: Peter Boyle <paboyle@ph.ed.ac.uk>
 using namespace std;
 using namespace Grid;
  
-
 int main (int argc, char ** argv)
 {
   typedef typename DomainWallFermionD::FermionField FermionField; 
   typedef typename DomainWallFermionD::ComplexField ComplexField; 
   typename DomainWallFermionD::ImplParams params; 
 
-  const int Ls=16;
-
   Grid_init(&argc,&argv);
+
+  int Ls=16;
+  int nrhs = 4;
+  bool load_config = false;
+  std::string load_config_file;
+  RealD mass=0.01;  
+
+  for(int i=1;i<argc;i++){
+    std::string arg = argv[i];
+    if(arg == "--Ls"){
+      Ls = std::stoi(argv[i+1]);
+      std::cout << GridLogMessage << "Set Ls to " << Ls << std::endl;
+    }else if(arg == "--nrhs"){
+      nrhs = std::stoi(argv[i+1]);
+      std::cout << GridLogMessage << "Set nrhs to " << nrhs << std::endl;
+    }else if(arg == "--mass"){
+      std::stringstream ss; ss << argv[i+1]; ss >> mass;
+      std::cout << GridLogMessage << "Set mass to " << mass << std::endl;
+    }else if(arg == "--load_config"){
+      load_config = true;
+      load_config_file = argv[i+1];
+      std::cout << GridLogMessage << "Using configuration " << load_config_file << std::endl;
+    }
+  }  
 
   auto latt_size   = GridDefaultLatt();
   auto simd_layout = GridDefaultSimd(Nd,vComplex::Nsimd());
@@ -59,7 +80,6 @@ int main (int argc, char ** argv)
   GridRedBlackCartesian * FrbGrid = SpaceTimeGrid::makeFiveDimRedBlackGrid(Ls,UGrid);
  
   double stp = 1.e-8;
-  int nrhs = 4;
 
   ///////////////////////////////////////////////
   // Set up the problem as a 4d spreadout job
@@ -83,28 +103,22 @@ int main (int argc, char ** argv)
 
   LatticeGaugeField Umu(UGrid); 
 
-  int conf = 2;
-  if(conf==0) { 
+  if(load_config) { 
     FieldMetaData header;
-    std::string file("./lat.in");
+    std::string file(load_config_file);
     NerscIO::readConfiguration(Umu,header,file);
     std::cout << GridLogMessage << " Config "<<file<<" successfully read" <<std::endl;
-  } else if (conf==1){
+  } else{
     GridParallelRNG pRNG(UGrid );  
-
     pRNG.SeedFixedIntegers(seeds);
     SU<Nc>::HotConfiguration(pRNG,Umu);
     std::cout << GridLogMessage << "Intialised the HOT Gauge Field"<<std::endl;
-  } else {
-    SU<Nc>::ColdConfiguration(Umu);
-    std::cout << GridLogMessage << "Intialised the COLD Gauge Field"<<std::endl;
   }
 
   ///////////////////////////////////////////////////////////////
   // Set up N-solvers as trivially parallel
   ///////////////////////////////////////////////////////////////
   std::cout << GridLogMessage << " Building the solvers"<<std::endl;
-  RealD mass=0.01;
   RealD M5=1.8;
   DomainWallFermionD Ddwf(Umu,*FGrid,*FrbGrid,*UGrid,*rbGrid,mass,M5,params);
 
