@@ -473,6 +473,7 @@ void InnerProductMatrix(Eigen::MatrixXcd &m , const std::vector<Field> &X, const
   }}
 }
 void MaddMatrix(std::vector<Field> &AP, Eigen::MatrixXcd &m , const std::vector<Field> &X,const std::vector<Field> &Y,RealD scale=1.0){
+#if 0
   // Should make this cache friendly with site outermost, parallel_for
   // Deal with case AP aliases with either Y or X
   std::vector<Field> tmp(Nblock,X[0]);
@@ -485,8 +486,57 @@ void MaddMatrix(std::vector<Field> &AP, Eigen::MatrixXcd &m , const std::vector<
   for(int b=0;b<Nblock;b++){
     AP[b] = tmp[b];
   }
+#else
+  
+  size_t mbytes = Nblock*Nblock*sizeof(scomplex);
+  scomplex* mm_h = (scomplex*)acceleratorAllocCpu(mbytes);
+  for(int i=0;i<Nblock;i++)
+    for(int j=0;j<Nblock;j++)
+      mm_h[j+Nblock*i] = scomplex(scale*m(i,j));
+  scomplex* mm_d = (scomplex*)acceleratorAllocDevice(mbytes);
+  acceleratorCopyToDevice(mm_h,mm_d,mbytes);
+  
+  typedef decltype(X[0].View(AcceleratorRead)) ViewType;
+  size_t vbytes = Nblock * sizeof(ViewType);
+  ViewType* Xv_h = (ViewType*)acceleratorAllocCpu(vbytes);
+  ViewType* Yv_h = (ViewType*)acceleratorAllocCpu(vbytes);
+  ViewType* APv_h = (ViewType*)acceleratorAllocCpu(vbytes);
+  for(int i=0;i<Nblock;i++){
+    new(Xv_h+i) ViewType(X[i].View(AcceleratorRead));
+    new(Yv_h+i) ViewType(Y[i].View(AcceleratorRead));
+    new(APv_h+i) ViewType(AP[i].View(AcceleratorWrite));
+  }
+  ViewType* Xv_d = (ViewType*)acceleratorAllocDevice(vbytes); acceleratorCopyToDevice(Xv_h,Xv_d,vbytes);
+  ViewType* Yv_d = (ViewType*)acceleratorAllocDevice(vbytes); acceleratorCopyToDevice(Yv_h,Yv_d,vbytes);
+  ViewType* APv_d = (ViewType*)acceleratorAllocDevice(vbytes);  acceleratorCopyToDevice(APv_h,APv_d,vbytes);
+  
+  accelerator_for(ss, X[0].Grid()->oSites(), Field::vector_type::Nsimd(),
+		  {
+		    for(int b=0;b<Nblock;b++){
+		      auto tmp = Yv_d[b](ss);
+		      for(int bp=0;bp<Nblock;bp++) {
+			tmp = tmp + mm_d[b+Nblock*bp]*Xv_d[bp](ss);
+		      }
+		      coalescedWrite(APv_d[b][ss], tmp);
+		    }
+		  });
+		    
+  for(int i=0;i<Nblock;i++){
+    Xv_h[i].ViewClose(); Yv_h[i].ViewClose(); APv_h[i].ViewClose();
+  }
+  acceleratorFreeCpu(mm_h);
+  acceleratorFreeDevice(mm_d);
+  acceleratorFreeCpu(Xv_h);
+  acceleratorFreeDevice(Xv_d);
+  acceleratorFreeCpu(Yv_h);
+  acceleratorFreeDevice(Yv_d);
+  acceleratorFreeCpu(APv_h);
+  acceleratorFreeDevice(APv_d);
+
+#endif
 }
 void MulMatrix(std::vector<Field> &AP, Eigen::MatrixXcd &m , const std::vector<Field> &X){
+#if 0
   // Should make this cache friendly with site outermost, parallel_for
   for(int b=0;b<Nblock;b++){
     AP[b] = Zero();
@@ -494,6 +544,49 @@ void MulMatrix(std::vector<Field> &AP, Eigen::MatrixXcd &m , const std::vector<F
       AP[b] += scomplex(m(bp,b))*X[bp]; 
     }
   }
+#else
+
+  size_t mbytes = Nblock*Nblock*sizeof(scomplex);
+  scomplex* mm_h = (scomplex*)acceleratorAllocCpu(mbytes);
+  for(int i=0;i<Nblock;i++)
+    for(int j=0;j<Nblock;j++)
+      mm_h[j+Nblock*i] = scomplex(m(i,j));
+  scomplex* mm_d = (scomplex*)acceleratorAllocDevice(mbytes);
+  acceleratorCopyToDevice(mm_h,mm_d,mbytes);
+  
+  typedef decltype(X[0].View(AcceleratorRead)) ViewType;
+  size_t vbytes = Nblock * sizeof(ViewType);
+  ViewType* Xv_h = (ViewType*)acceleratorAllocCpu(vbytes);
+  ViewType* APv_h = (ViewType*)acceleratorAllocCpu(vbytes);
+  for(int i=0;i<Nblock;i++){
+    new(Xv_h+i) ViewType(X[i].View(AcceleratorRead));
+    new(APv_h+i) ViewType(AP[i].View(AcceleratorWrite));
+  }
+  ViewType* Xv_d = (ViewType*)acceleratorAllocDevice(vbytes); acceleratorCopyToDevice(Xv_h,Xv_d,vbytes);
+  ViewType* APv_d = (ViewType*)acceleratorAllocDevice(vbytes);  acceleratorCopyToDevice(APv_h,APv_d,vbytes);
+  
+  accelerator_for(ss, X[0].Grid()->oSites(), Field::vector_type::Nsimd(),
+		  {
+		    for(int b=0;b<Nblock;b++){
+		      typename std::decay<decltype(Xv_d[b](ss))>::type tmp = Zero();
+		      for(int bp=0;bp<Nblock;bp++) {
+			tmp = tmp + mm_d[b+Nblock*bp]*Xv_d[bp](ss);
+		      }
+		      coalescedWrite(APv_d[b][ss], tmp);
+		    }
+		  });
+		    
+  for(int i=0;i<Nblock;i++){
+    Xv_h[i].ViewClose(); APv_h[i].ViewClose();
+  }
+  acceleratorFreeCpu(mm_h);
+  acceleratorFreeDevice(mm_d);
+  acceleratorFreeCpu(Xv_h);
+  acceleratorFreeDevice(Xv_d);
+  acceleratorFreeCpu(APv_h);
+  acceleratorFreeDevice(APv_d);
+
+#endif
 }
 double normv(const std::vector<Field> &P){
   double nn = 0.0;
