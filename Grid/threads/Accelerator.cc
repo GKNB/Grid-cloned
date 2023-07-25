@@ -13,6 +13,9 @@ void     acceleratorThreads(uint32_t t) {accelerator_threads = t;};
 #define ENV_RANK_SLURM         "SLURM_PROCID"
 #define ENV_LOCAL_RANK_MVAPICH "MV2_COMM_WORLD_LOCAL_RANK"
 #define ENV_RANK_MVAPICH       "MV2_COMM_WORLD_RANK"
+#define ENV_RANK_MPICH         "PMI_RANK"
+#define ENV_LOCAL_RANK_MPICH   "PMI_LOCAL_RANK"
+
 
 #ifdef GRID_CUDA
 cudaDeviceProp *gpu_props;
@@ -30,6 +33,8 @@ void acceleratorInit(void)
   if ((localRankStr = getenv(ENV_RANK_OMPI   )) != NULL) { world_rank = atoi(localRankStr);}
   if ((localRankStr = getenv(ENV_RANK_MVAPICH)) != NULL) { world_rank = atoi(localRankStr);}
   if ((localRankStr = getenv(ENV_RANK_SLURM  )) != NULL) { world_rank = atoi(localRankStr);}
+  if ((localRankStr = getenv(ENV_RANK_MPICH  )) != NULL) { world_rank = atoi(localRankStr);}
+  
   // We extract the local rank initialization using an environment variable
   if ((localRankStr = getenv(ENV_LOCAL_RANK_OMPI)) != NULL) {
     if (!world_rank)
@@ -42,7 +47,11 @@ void acceleratorInit(void)
   } else if ((localRankStr = getenv(ENV_LOCAL_RANK_SLURM)) != NULL) {
     if (!world_rank)
       printf("SLURM detected\n");
-    rank = atoi(localRankStr);		
+    rank = atoi(localRankStr);
+  } else if ((localRankStr = getenv(ENV_LOCAL_RANK_MPICH)) != NULL) {
+    if (!world_rank)
+      printf("MPICH detected\n");
+    rank = atoi(localRankStr);		   
   } else { 
     if (!world_rank)
       printf("MPI version is unknown - bad things may happen\n");
