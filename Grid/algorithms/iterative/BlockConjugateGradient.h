@@ -509,13 +509,15 @@ void MaddMatrix(std::vector<Field> &AP, Eigen::MatrixXcd &m , const std::vector<
   ViewType* Xv_d = (ViewType*)acceleratorAllocDevice(vbytes); acceleratorCopyToDevice(Xv_h,Xv_d,vbytes);
   ViewType* Yv_d = (ViewType*)acceleratorAllocDevice(vbytes); acceleratorCopyToDevice(Yv_h,Yv_d,vbytes);
   ViewType* APv_d = (ViewType*)acceleratorAllocDevice(vbytes);  acceleratorCopyToDevice(APv_h,APv_d,vbytes);
+
+  int lNblock = Nblock; //prevent lambda from trying to access class member variable on device!
   
   accelerator_for(ss, X[0].Grid()->oSites(), Field::vector_type::Nsimd(),
 		  {
-		    for(int b=0;b<Nblock;b++){
+		    for(int b=0;b<lNblock;b++){
 		      auto tmp = Yv_d[b](ss);
-		      for(int bp=0;bp<Nblock;bp++) {
-			tmp = tmp + mm_d[b+Nblock*bp]*Xv_d[bp](ss);
+		      for(int bp=0;bp<lNblock;bp++) {
+			tmp = tmp + mm_d[b+lNblock*bp]*Xv_d[bp](ss);
 		      }
 		      coalescedWrite(APv_d[b][ss], tmp);
 		    }
@@ -564,13 +566,15 @@ void MulMatrix(std::vector<Field> &AP, Eigen::MatrixXcd &m , const std::vector<F
   }
   ViewType* Xv_d = (ViewType*)acceleratorAllocDevice(vbytes); acceleratorCopyToDevice(Xv_h,Xv_d,vbytes);
   ViewType* APv_d = (ViewType*)acceleratorAllocDevice(vbytes);  acceleratorCopyToDevice(APv_h,APv_d,vbytes);
+
+  int lNblock = Nblock; //prevent lambda from trying to access class member variable on device!
   
   accelerator_for(ss, X[0].Grid()->oSites(), Field::vector_type::Nsimd(),
 		  {
-		    for(int b=0;b<Nblock;b++){
+		    for(int b=0;b<lNblock;b++){
 		      typename std::decay<decltype(Xv_d[b](ss))>::type tmp = Zero();
-		      for(int bp=0;bp<Nblock;bp++) {
-			tmp = tmp + mm_d[b+Nblock*bp]*Xv_d[bp](ss);
+		      for(int bp=0;bp<lNblock;bp++) {
+			tmp = tmp + mm_d[b+lNblock*bp]*Xv_d[bp](ss);
 		      }
 		      coalescedWrite(APv_d[b][ss], tmp);
 		    }
