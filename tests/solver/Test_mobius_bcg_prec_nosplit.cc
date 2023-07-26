@@ -44,7 +44,9 @@ int main (int argc, char ** argv)
   int nrhs = 4;
   bool load_config = false;
   std::string load_config_file;
-  RealD mass=0.01;  
+  RealD mass=0.01;
+  RealD bpc=1.0; //b+c
+    
 
   for(int i=1;i<argc;i++){
     std::string arg = argv[i];
@@ -61,6 +63,9 @@ int main (int argc, char ** argv)
       load_config = true;
       load_config_file = argv[i+1];
       std::cout << GridLogMessage << "Using configuration " << load_config_file << std::endl;
+    }else if(arg == "--bplusc"){
+      std::stringstream ss; ss << argv[i+1]; ss >> bpc;
+      std::cout << GridLogMessage << "Set Mobius b+c to " << bpc << std::endl;
     }
   }  
 
@@ -120,13 +125,20 @@ int main (int argc, char ** argv)
   ///////////////////////////////////////////////////////////////
   std::cout << GridLogMessage << " Building the solvers"<<std::endl;
   RealD M5=1.8;
-  DomainWallFermionD Ddwf(Umu,*FGrid,*FrbGrid,*UGrid,*rbGrid,mass,M5,params);
+  //DomainWallFermionD Ddwf(Umu,*FGrid,*FrbGrid,*UGrid,*rbGrid,mass,M5,params);
 
+  RealD bmc = 1.0;
+  RealD mob_b = 0.5*(bpc + bmc);
+
+  MobiusFermionD Ddwf(Umu,*FGrid,*FrbGrid,*UGrid,*rbGrid,mass,M5,mob_b,mob_b-bmc,params);
+
+  
   std::cout << GridLogMessage << "****************************************************************** "<<std::endl;
   std::cout << GridLogMessage << " Calling DWF CG "<<std::endl;
   std::cout << GridLogMessage << "****************************************************************** "<<std::endl;
 
-  MdagMLinearOperator<DomainWallFermionD,FermionField> HermOp(Ddwf);
+  //MdagMLinearOperator<DomainWallFermionD,FermionField> HermOp(Ddwf);
+  MdagMLinearOperator<MobiusFermionD,FermionField> HermOp(Ddwf);
   ConjugateGradient<FermionField> CG((stp),100000);
 
   for(int rhs=0;rhs<1;rhs++){

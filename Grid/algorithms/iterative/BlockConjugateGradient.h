@@ -512,15 +512,13 @@ void MaddMatrix(std::vector<Field> &AP, Eigen::MatrixXcd &m , const std::vector<
 
   int lNblock = Nblock; //prevent lambda from trying to access class member variable on device!
   
-  accelerator_for(ss, X[0].Grid()->oSites(), Field::vector_type::Nsimd(),
+  accelerator_for2d(ss, X[0].Grid()->oSites(), b, lNblock, Field::vector_type::Nsimd(),
 		  {
-		    for(int b=0;b<lNblock;b++){
-		      auto tmp = Yv_d[b](ss);
-		      for(int bp=0;bp<lNblock;bp++) {
-			tmp = tmp + mm_d[b+lNblock*bp]*Xv_d[bp](ss);
-		      }
-		      coalescedWrite(APv_d[b][ss], tmp);
+		    auto tmp = Yv_d[b](ss);
+		    for(int bp=0;bp<lNblock;bp++) {
+		      tmp = tmp + mm_d[b+lNblock*bp]*Xv_d[bp](ss);
 		    }
+		    coalescedWrite(APv_d[b][ss], tmp);
 		  });
 		    
   for(int i=0;i<Nblock;i++){
@@ -569,15 +567,13 @@ void MulMatrix(std::vector<Field> &AP, Eigen::MatrixXcd &m , const std::vector<F
 
   int lNblock = Nblock; //prevent lambda from trying to access class member variable on device!
   
-  accelerator_for(ss, X[0].Grid()->oSites(), Field::vector_type::Nsimd(),
+  accelerator_for2d(ss, X[0].Grid()->oSites(), b, lNblock, Field::vector_type::Nsimd(),
 		  {
-		    for(int b=0;b<lNblock;b++){
-		      typename std::decay<decltype(Xv_d[b](ss))>::type tmp = Zero();
-		      for(int bp=0;bp<lNblock;bp++) {
-			tmp = tmp + mm_d[b+lNblock*bp]*Xv_d[bp](ss);
-		      }
-		      coalescedWrite(APv_d[b][ss], tmp);
+		    typename std::decay<decltype(Xv_d[b](ss))>::type tmp = Zero();
+		    for(int bp=0;bp<lNblock;bp++) {
+		      tmp = tmp + mm_d[b+lNblock*bp]*Xv_d[bp](ss);
 		    }
+		    coalescedWrite(APv_d[b][ss], tmp);
 		  });
 		    
   for(int i=0;i<Nblock;i++){
