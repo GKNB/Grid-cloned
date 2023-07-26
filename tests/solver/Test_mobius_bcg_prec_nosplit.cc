@@ -138,12 +138,14 @@ int main (int argc, char ** argv)
   std::cout << GridLogMessage << "****************************************************************** "<<std::endl;
 
   //MdagMLinearOperator<DomainWallFermionD,FermionField> HermOp(Ddwf);
-  MdagMLinearOperator<MobiusFermionD,FermionField> HermOp(Ddwf);
+  //MdagMLinearOperator<MobiusFermionD,FermionField> HermOp(Ddwf);
   ConjugateGradient<FermionField> CG((stp),100000);
+  SchurRedBlackDiagTwoSolve<FermionField> SchurSolverSingle(CG);
 
   for(int rhs=0;rhs<1;rhs++){
     result[rhs] = Zero();
-    CG(HermOp,src[rhs],result[rhs]);
+    //CG(HermOp,src[rhs],result[rhs]);
+    SchurSolverSingle(Ddwf,src[rhs],result[rhs]);    
   }
 
   for(int rhs=0;rhs<1;rhs++){
