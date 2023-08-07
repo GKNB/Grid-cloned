@@ -105,11 +105,7 @@ public:
 
       for(int mu=0;mu<Nd;mu++) U[mu]= PeekIndex<LorentzIndex>(Umu,mu);
 
-      if ( Fourier==false ) { 
-	trG = SteepestDescentStep(U,xform,alpha,dmuAmu,orthog);
-      } else { 
-	trG = FourierAccelSteepestDescentStep(U,xform,alpha,dmuAmu,orthog);
-      }
+      trG = GaugeFixStep(U,xform,alpha,dmuAmu,orthog,Fourier);
 
       //      std::cout << GridLogMessage << "trG   "<< trG<< std::endl;
       //      std::cout << GridLogMessage << "xform "<< norm2(xform)<< std::endl;
@@ -144,22 +140,8 @@ public:
     if (err_on_no_converge)
       assert(0 && "Gauge fixing did not converge within the specified number of iterations");
   };
-  static Real SteepestDescentStep(std::vector<GaugeMat> &U,GaugeMat &xform, Real alpha, GaugeMat & dmuAmu,int orthog) {
-    GridBase *grid = U[0].Grid();
 
-    GaugeMat g(grid);
-    ExpiAlphaDmuAmu(U,g,alpha,dmuAmu,orthog);
-
-    Real vol = grid->gSites();
-    Real trG = TensorRemove(sum(trace(g))).real()/vol/Nc;
-
-    xform = g*xform ;
-    SU<Nc>::GaugeTransform<Gimpl>(U,g);
-
-    return trG;
-  }
-
-  static Real FourierAccelSteepestDescentStep(std::vector<GaugeMat> &U,GaugeMat &xform, Real alpha, GaugeMat & dmuAmu,int orthog) {
+  static Real GaugeFixStep(std::vector<GaugeMat> &U,GaugeMat &xform, Real alpha, GaugeMat & dmuAmu,int orthog,bool Fourier) {
 
     GridBase *grid = U[0].Grid();
 
@@ -172,7 +154,7 @@ public:
     DmuAmu(U,dmuAmu,orthog);
 
     //The eigenmodes of the Laplacian are boundary-condition dependent
-    Gimpl::FourierAcceleratedGfix(dmuAmu, orthog);
+    if(Fourier) Gimpl::FourierAcceleratedGfix(dmuAmu, orthog);
 
     GaugeMat ciadmam(grid);
     Complex cialpha(0.0,-alpha);
