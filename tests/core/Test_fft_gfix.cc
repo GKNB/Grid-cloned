@@ -31,7 +31,7 @@ Author: Peter Boyle <paboyle@ph.ed.ac.uk>
 using namespace Grid;
 
 template<typename Gimpl>
-void run(double alpha, bool do_fft_gfix){
+void run(double alpha, bool do_fft_gfix, bool do_landau, bool do_coulomb){
   std::vector<int> seeds({1,2,3,4});
   int threads = GridThread::GetThreads();
 
@@ -118,23 +118,7 @@ void run(double alpha, bool do_fft_gfix){
     std::cout << " Final plaquette "<<plaq << " diff " << plaq - init_plaq << " (expect 0)" << std::endl;
   }
   //#########################################################################################
-
-  std::cout<< "******************************************************************************************" <<std::endl;
-  std::cout<< "* Testing steepest descent fixing to Landau gauge with random configuration             **" <<std::endl;
-  std::cout<< "******************************************************************************************" <<std::endl;
-
-  SU<Nc>::HotConfiguration(pRNG,Umu);
-
-  init_plaq=WilsonLoops<Gimpl>::avgPlaquette(Umu);
-  std::cout << " Initial plaquette "<< init_plaq << std::endl;
-
-  FourierAcceleratedGaugeFixer<Gimpl>::SteepestDescentGaugeFix(Umu,alpha,10000,1.0e-12, 1.0e-12,false);
-
-  plaq=WilsonLoops<Gimpl>::avgPlaquette(Umu);
-  std::cout << " Final plaquette "<<plaq << " diff " << plaq - init_plaq << " (expect 0)" << std::endl;
-
-  //#########################################################################################
-  if(do_fft_gfix){
+  if(do_landau && do_fft_gfix){
     std::cout<< "******************************************************************************************" <<std::endl;
     std::cout<< "* Testing Fourier accelerated fixing to Landau gauge with random configuration          **" <<std::endl;
     std::cout<< "******************************************************************************************" <<std::endl;
@@ -144,31 +128,30 @@ void run(double alpha, bool do_fft_gfix){
     init_plaq=WilsonLoops<Gimpl>::avgPlaquette(Umu);
     std::cout << " Initial plaquette "<< init_plaq << std::endl;
 
-    FourierAcceleratedGaugeFixer<Gimpl>::SteepestDescentGaugeFix(Umu,alpha,10000,1.0e-12, 1.0e-12,true);
+    FourierAcceleratedGaugeFixer<Gimpl>::SteepestDescentGaugeFix(Umu,alpha,50000,1.0e-12, 1.0e-12,true);
 
     plaq=WilsonLoops<Gimpl>::avgPlaquette(Umu);
     std::cout << " Final plaquette "<<plaq << " diff " << plaq - init_plaq << " (expect 0)" << std::endl;
   }
   //#########################################################################################
-  
-  std::cout<< "*******************************************************************************************" <<std::endl;
-  std::cout<< "* Testing steepest descent fixing to coulomb gauge with random configuration           *" <<std::endl;
-  std::cout<< "*******************************************************************************************" <<std::endl;
+  if(do_landau){
+    std::cout<< "******************************************************************************************" <<std::endl;
+    std::cout<< "* Testing steepest descent fixing to Landau gauge with random configuration             **" <<std::endl;
+    std::cout<< "******************************************************************************************" <<std::endl;
 
-  Umu=Urnd;
-  SU<Nc>::HotConfiguration(pRNG,Umu);
+    SU<Nc>::HotConfiguration(pRNG,Umu);
 
-  init_plaq=WilsonLoops<Gimpl>::avgPlaquette(Umu);
-  std::cout << " Initial plaquette "<< init_plaq << std::endl;
+    init_plaq=WilsonLoops<Gimpl>::avgPlaquette(Umu);
+    std::cout << " Initial plaquette "<< init_plaq << std::endl;
 
-  FourierAcceleratedGaugeFixer<Gimpl>::SteepestDescentGaugeFix(Umu,xform3,alpha,10000,1.0e-12, 1.0e-12,false,coulomb_dir);
+    FourierAcceleratedGaugeFixer<Gimpl>::SteepestDescentGaugeFix(Umu,alpha,50000,1.0e-12, 1.0e-12,false);
 
-  plaq=WilsonLoops<Gimpl>::avgPlaquette(Umu);
-  std::cout << " Final plaquette "<<plaq << " diff " << plaq - init_plaq << " (expect 0)" << std::endl;
-
+    plaq=WilsonLoops<Gimpl>::avgPlaquette(Umu);
+    std::cout << " Final plaquette "<<plaq << " diff " << plaq - init_plaq << " (expect 0)" << std::endl;
+  }
 
   //#########################################################################################
-  if(do_fft_gfix){
+  if(do_coulomb && do_fft_gfix){
     std::cout<< "*******************************************************************************************" <<std::endl;
     std::cout<< "* Testing Fourier accelerated fixing to coulomb gauge with random configuration           *" <<std::endl;
     std::cout<< "*******************************************************************************************" <<std::endl;
@@ -179,7 +162,25 @@ void run(double alpha, bool do_fft_gfix){
     init_plaq=WilsonLoops<Gimpl>::avgPlaquette(Umu);
     std::cout << " Initial plaquette "<< init_plaq << std::endl;
 
-    FourierAcceleratedGaugeFixer<Gimpl>::SteepestDescentGaugeFix(Umu,xform3,alpha,10000,1.0e-12, 1.0e-12,true,coulomb_dir);
+    FourierAcceleratedGaugeFixer<Gimpl>::SteepestDescentGaugeFix(Umu,xform3,alpha,50000,1.0e-12, 1.0e-12,true,coulomb_dir);
+
+    plaq=WilsonLoops<Gimpl>::avgPlaquette(Umu);
+    std::cout << " Final plaquette "<<plaq << " diff " << plaq - init_plaq << " (expect 0)" << std::endl;
+  }
+
+  //#########################################################################################
+  if(do_coulomb){
+    std::cout<< "*******************************************************************************************" <<std::endl;
+    std::cout<< "* Testing steepest descent fixing to coulomb gauge with random configuration           *" <<std::endl;
+    std::cout<< "*******************************************************************************************" <<std::endl;
+
+    Umu=Urnd;
+    SU<Nc>::HotConfiguration(pRNG,Umu);
+
+    init_plaq=WilsonLoops<Gimpl>::avgPlaquette(Umu);
+    std::cout << " Initial plaquette "<< init_plaq << std::endl;
+
+    FourierAcceleratedGaugeFixer<Gimpl>::SteepestDescentGaugeFix(Umu,xform3,alpha,50000,1.0e-12, 1.0e-12,false,coulomb_dir);
 
     plaq=WilsonLoops<Gimpl>::avgPlaquette(Umu);
     std::cout << " Final plaquette "<<plaq << " diff " << plaq - init_plaq << " (expect 0)" << std::endl;
@@ -193,6 +194,8 @@ int main (int argc, char ** argv)
   double alpha=0.1; //step size
   std::string gimpl = "periodic";
   bool do_fft_gfix = true; //test fourier transformed gfix as well as steepest descent
+  bool do_landau = true; //test Landau gfix for the random configuration
+  bool do_coulomb = true; //test Coulomb gfix for the random configuration
   for(int i=1;i<argc;i++){
     std::string sarg(argv[i]);
     if(sarg == "--gimpl"){
@@ -200,21 +203,25 @@ int main (int argc, char ** argv)
       gimpl = argv[i+1];
       if(gimpl != "periodic" && gimpl != "conjugate")
 	assert(0 && "Invalid gimpl");
-      if(gimpl == "conjugate")
-	alpha = 0.025; //default alpha too large for CCBC
     }else if(sarg == "--no-fft-gfix"){
       std::cout << "Not doing the Fourier accelerated gauge fixing tests" << std::endl;
       do_fft_gfix = false;
     }else if(sarg == "--alpha"){
       assert(i<argc-1 && "--alpha option requires an argument");
       std::istringstream ss(argv[i+1]); ss >> alpha;
+    }else if(sarg == "--no-gfix-landau"){
+      std::cout << "Not doing Landau gauge fixing for the random configuration" << std::endl;
+      do_landau = false;
+    }else if(sarg == "--no-gfix-coulomb"){
+      std::cout << "Not doing Coulomb gauge fixing for the random configuration" << std::endl;
+      do_coulomb = false;
     }
   }
 
 
   if(gimpl == "periodic"){
     std::cout << GridLogMessage << "Using periodic boundary condition" << std::endl;
-    run<PeriodicGimplR>(alpha, do_fft_gfix);
+    run<PeriodicGimplR>(alpha, do_fft_gfix, do_landau, do_coulomb);
   }else{
     std::vector<int> conjdirs = {1,1,0,0}; //test with 2 conjugate dirs and 2 not
     std::cout << GridLogMessage << "Using complex conjugate boundary conditions in dimensions ";
@@ -224,7 +231,7 @@ int main (int argc, char ** argv)
     std::cout << std::endl;
 
     ConjugateGimplR::setDirections(conjdirs);
-    run<ConjugateGimplR>(alpha, do_fft_gfix);
+    run<ConjugateGimplR>(alpha, do_fft_gfix, do_landau, do_coulomb);
   }
   
   Grid_finalize();

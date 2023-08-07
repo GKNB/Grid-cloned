@@ -167,48 +167,12 @@ public:
 
     FFT theFFT((GridCartesian *)grid);
 
-    LatticeComplex  Fp(grid);
-    LatticeComplex  psq(grid); psq=Zero();
-    LatticeComplex  pmu(grid); 
-    LatticeComplex   one(grid); one = Complex(1.0,0.0);
-
     GaugeMat g(grid);
     GaugeMat dmuAmu_p(grid);
     DmuAmu(U,dmuAmu,orthog);
 
-    std::vector<int> mask(Nd,1);
-    for(int mu=0;mu<Nd;mu++) if (mu==orthog) mask[mu]=0;
-    theFFT.FFT_dim_mask(dmuAmu_p,dmuAmu,mask,FFT::forward);
-
-    //////////////////////////////////
-    // Work out Fp = psq_max/ psq...
-    // Avoid singularities in Fp
-    //////////////////////////////////
-    Coordinate latt_size = grid->GlobalDimensions();
-    Coordinate coor(grid->_ndimension,0);
-    for(int mu=0;mu<Nd;mu++) {
-      if ( mu != orthog ) { 
-	Real TwoPiL =  M_PI * 2.0/ latt_size[mu];
-	LatticeCoordinate(pmu,mu);
-	pmu = TwoPiL * pmu ;
-	psq = psq + 4.0*sin(pmu*0.5)*sin(pmu*0.5); 
-      }
-    }
-
-    Complex psqMax(16.0);
-    Fp =  psqMax*one/psq;
-
-    pokeSite(TComplex(16.0),Fp,coor);
-    if( (orthog>=0) && (orthog<Nd) ){
-      for(int t=0;t<grid->GlobalDimensions()[orthog];t++){
-	coor[orthog]=t;
-	pokeSite(TComplex(16.0),Fp,coor);
-      }
-    }
-    
-    dmuAmu_p  = dmuAmu_p * Fp; 
-
-    theFFT.FFT_dim_mask(dmuAmu,dmuAmu_p,mask,FFT::backward);
+    //The eigenmodes of the Laplacian are boundary-condition dependent
+    Gimpl::FourierAcceleratedGfix(dmuAmu, orthog);
 
     GaugeMat ciadmam(grid);
     Complex cialpha(0.0,-alpha);

@@ -75,6 +75,57 @@ public:
   }
 
   static inline bool isPeriodicGaugeField(void) { return true; }
+
+  //Apply the Fourier acceleration to the gauge fixing step
+  //The form of the FFT and the eigenvalues of the Laplacian are BC-dependent
+  static inline void FourierAcceleratedGfix(GaugeLinkField &dmuAmu, int orthog){
+    GridBase* grid = dmuAmu.Grid();
+    GaugeLinkField dmuAmu_p(grid);
+
+    LatticeComplex  Fp(grid), one(grid), psq(grid);
+    one = Complex(1.0,0.0); 
+
+    FFT theFFT((GridCartesian *)grid);
+
+    std::vector<int> mask(Nd,1);
+    for(int mu=0;mu<Nd;mu++) if (mu==orthog) mask[mu]=0;
+    theFFT.FFT_dim_mask(dmuAmu_p,dmuAmu,mask,FFT::forward);
+
+    //////////////////////////////////
+    // Work out Fp = psq_max/ psq...
+    // Avoid singularities in Fp
+    //////////////////////////////////
+    Coordinate latt_size = grid->GlobalDimensions();
+    Coordinate coor(grid->_ndimension,0);
+    LatticeComplex  pmu(grid); 
+
+    psq = Zero();
+    for(int mu=0;mu<Nd;mu++) {
+      if ( mu != orthog ) { 
+	Real TwoPiL =  M_PI * 2.0/ latt_size[mu];
+	LatticeCoordinate(pmu,mu);
+	pmu = TwoPiL * pmu ;
+	psq = psq + 4.0*sin(pmu*0.5)*sin(pmu*0.5); 
+      }
+    }
+
+    Complex psqMax(16.0);
+    Fp =  psqMax*one/psq;
+
+    pokeSite(TComplex(16.0),Fp,coor);
+    if( (orthog>=0) && (orthog<Nd) ){
+      for(int t=0;t<grid->GlobalDimensions()[orthog];t++){
+	coor[orthog]=t;
+	pokeSite(TComplex(16.0),Fp,coor);
+      }
+    }
+    
+    dmuAmu_p  = dmuAmu_p * Fp; 
+
+    theFFT.FFT_dim_mask(dmuAmu,dmuAmu_p,mask,FFT::backward);
+  }
+
+
 };
 
 // Composition with smeared link, bc's etc.. probably need multiple inheritance
@@ -179,6 +230,111 @@ public:
   static inline void       setDirections(const std::vector<int> &conjDirs) { _conjDirs=conjDirs; }
   static inline std::vector<int> getDirections(void) { return _conjDirs; }
   static inline bool isPeriodicGaugeField(void) { return false; }
+
+  //Apply the Fourier acceleration to the gauge fixing step
+  //The form of the FFT and the eigenvalues of the Laplacian are BC-dependent
+  static inline void FourierAcceleratedGfix(GaugeLinkField &dmuAmu, int orthog){
+    int nconjdir = 0;
+    for(int mu=0;mu<Nd;mu++)
+      if ( mu != orthog && _conjDirs[mu] )
+	nconjdir++;
+    
+    if(nconjdir == 0) return PeriodicGaugeImpl<GimplTypes>::FourierAcceleratedGfix(dmuAmu,orthog); //prd implementation is cheaper, plus you would get an unwanted pole in the momenta
+
+    GridBase* grid = dmuAmu.Grid();
+    Coordinate latt_size = grid->GlobalDimensions();
+
+    FFT theFFT((GridCartesian *)grid);
+
+    //In cconj directions, the real part of A_mu is antiperiodic and the imaginary part is periodic
+    //To ensure the appropriate FFT basis, p=(2n+1)\pi/L, for the real part we must shift the momenta
+    GaugeLinkField dmuAmu_r = real(dmuAmu), dmuAmu_i = imag(dmuAmu);
+    
+    std::vector<int> mask(Nd,1);
+    for(int mu=0;mu<Nd;mu++) if (mu==orthog) mask[mu]=0;
+
+    GaugeLinkField dmuAmu_pr(grid), dmuAmu_pi(grid);
+    LatticeComplex  pmu(grid), shift(grid), Fp(grid), one(grid), psq(grid);
+    one = Complex(1.0,0.0);
+    Complex psqMax(16.0);
+
+    { //Imaginary part, periodic BCs in all directions
+      theFFT.FFT_dim_mask(dmuAmu_pi,dmuAmu_i,mask,FFT::forward);
+
+      psq = Zero();
+      for(int mu=0;mu<Nd;mu++) {
+	if ( mu != orthog ) { 
+	  Real TwoPiL =  M_PI * 2.0/ latt_size[mu];
+	  LatticeCoordinate(pmu,mu);
+	  pmu = TwoPiL * pmu ;
+	  psq = psq + 4.0*sin(pmu*0.5)*sin(pmu*0.5); 
+	}
+      }
+
+      Fp =  psqMax*one/psq;
+
+      Coordinate coor(grid->_ndimension,0);
+      pokeSite(TComplex(16.0),Fp,coor);
+      if( (orthog>=0) && (orthog<Nd) ){
+	for(int t=0;t<grid->GlobalDimensions()[orthog];t++){
+	  coor[orthog]=t;
+	  pokeSite(TComplex(16.0),Fp,coor);
+	}
+      }
+    
+      dmuAmu_pi  = dmuAmu_pi * Fp; 
+
+      theFFT.FFT_dim_mask(dmuAmu_i,dmuAmu_pi,mask,FFT::backward);
+    }
+
+    { //Real part, antiperiodic BCs in cconj dirs, periodic otherwise
+      //include phase factor so we are FFT'ing with the right momentum basis  p = (2k + 1)pi/L  for cconj directions   (  2pi/L otherwise )
+      LatticeComplex  rphase = one, tmp(grid); 
+      for(int mu=0;mu<Nd;mu++){
+	if( mu != orthog && _conjDirs[mu] ){
+	  LatticeCoordinate(tmp,mu);
+	  tmp = tmp * Complex(0, -M_PI/latt_size[mu]);
+	  tmp = exp(tmp);
+	  rphase = rphase * tmp;
+	}
+      }
+      dmuAmu_r = dmuAmu_r * rphase;
+
+      theFFT.FFT_dim_mask(dmuAmu_pr,dmuAmu_r,mask,FFT::forward);
+
+      psq = Zero();
+      for(int mu=0;mu<Nd;mu++) {
+	if ( mu != orthog ) { 
+	  if( ! _conjDirs[mu] ){
+	    Real TwoPiL =  M_PI * 2.0/ latt_size[mu];
+	    LatticeCoordinate(pmu,mu);
+	    pmu = TwoPiL * pmu ;
+	    psq = psq + 4.0*sin(pmu*0.5)*sin(pmu*0.5); 
+	  }else{
+	    Real Pi2L =  M_PI / ( 2.0 * latt_size[mu] );
+	    LatticeCoordinate(pmu,mu);
+	    pmu = 2.0 * Pi2L * pmu ;
+	    shift = Pi2L;
+	    pmu = pmu + shift;
+
+	    psq = psq + 4.0*sin(pmu)*sin(pmu); 
+	  }
+	}
+      }
+
+      //Note, psq=0 is not possible, hence we do not need to deal with the singularity (for some reason, if you do it anyway, it causes the plaquette to drift!)
+      Fp =  psqMax*one/psq;
+   
+      dmuAmu_pr  = dmuAmu_pr * Fp; 
+
+      theFFT.FFT_dim_mask(dmuAmu_r,dmuAmu_pr,mask,FFT::backward);
+      dmuAmu_r = conjugate(rphase) * dmuAmu_r; //unapply the phase field
+    }
+
+    dmuAmu = dmuAmu_r + Complex(0.,1.)*dmuAmu_i;
+
+  }
+
 };
 
 typedef PeriodicGaugeImpl<GimplTypesR> PeriodicGimplR; // Real.. whichever prec
