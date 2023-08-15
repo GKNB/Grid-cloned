@@ -73,7 +73,7 @@ class SortEigen {
   
  public:
   void push(std::vector<RealD>& lmd,std::vector<Field>& evec,int N) {
-    
+#if 0    
     ////////////////////////////////////////////////////////////////////////
     // PAB: FIXME: VERY VERY VERY wasteful: takes a copy of the entire vector set.
     //    : The vector reorder should be done by pointer swizzle somehow
@@ -93,6 +93,32 @@ class SortEigen {
       evec[i]=*(it->second);
       ++it;
     }
+#else
+    //CK - avoiding a temp copy here with some careful permutations
+    size_t sz = lmd.size();
+    std::vector<int> reord(sz); //map of dest index to source index
+    for(int i=0;i<sz;i++) reord[i] = i;
+    std::vector<int> curloc = reord; //track current location of field
+    std::partial_sort(reord.begin(),reord.begin()+N,reord.end(), [&](const int i, const int j){ return lmd[i]>lmd[j]; });
+     
+    for(int dest_loc=0;dest_loc<N;dest_loc++){ //only care about the first N of the result
+      //Which vector do we want to place here?
+      int src_vidx = reord[dest_loc];
+    
+      //Where is the source vector currently stored?
+      int src_loc = curloc[src_vidx];
+
+      //What is the current vector stored here?
+      int cur_vidx=-1;
+      for(int vidx=0;vidx<sz;vidx++) if(curloc[vidx] == dest_loc){ cur_vidx = vidx; break; }
+      assert(cur_vidx >= 0);
+
+      std::swap(evec[dest_loc], evec[src_loc]);
+      std::swap(lmd[dest_loc], lmd[src_loc]);
+      curloc[src_vidx] = dest_loc;
+      curloc[cur_vidx] = src_loc;
+    }
+#endif
   }
   void push(std::vector<RealD>& lmd,int N) {
     std::partial_sort(lmd.begin(),lmd.begin()+N,lmd.end(),less_lmd);

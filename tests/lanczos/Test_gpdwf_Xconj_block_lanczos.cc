@@ -96,7 +96,7 @@ int main (int argc, char ** argv)
   SchurDiagMooeeOperator<XconjugateMobiusFermionD,OneFlavorFermionField> HermOp_Xconj(action_Xconj);
   SchurDiagMooeeOperator<XconjugateMobiusFermionD,OneFlavorFermionField> s_HermOp_Xconj(s_action_Xconj);
 
-  //Defaults
+  //Defaults (converge for a 4^4 lattice)
   int Nstop = 32; 
   int Nk = 32; //Has to be divisible by Nu=4
   int Np = 8; //also has to be divisible by Nu
