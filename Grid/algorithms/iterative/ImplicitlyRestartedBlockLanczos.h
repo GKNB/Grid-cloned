@@ -73,27 +73,6 @@ class SortEigen {
   
  public:
   void push(std::vector<RealD>& lmd,std::vector<Field>& evec,int N) {
-#if 0    
-    ////////////////////////////////////////////////////////////////////////
-    // PAB: FIXME: VERY VERY VERY wasteful: takes a copy of the entire vector set.
-    //    : The vector reorder should be done by pointer swizzle somehow
-    ////////////////////////////////////////////////////////////////////////
-    std::vector<Field> cpy(lmd.size(),evec[0].Grid());
-    for(int i=0;i<lmd.size();i++) cpy[i] = evec[i];
-    
-    std::vector<std::pair<RealD, Field const*> > emod(lmd.size());    
-
-    for(int i=0;i<lmd.size();++i)  emod[i] = std::pair<RealD,Field const*>(lmd[i],&cpy[i]);
-
-    partial_sort(emod.begin(),emod.begin()+N,emod.end(),less_pair);
-
-    typename std::vector<std::pair<RealD, Field const*> >::iterator it = emod.begin();
-    for(int i=0;i<N;++i){
-      lmd[i]=it->first;
-      evec[i]=*(it->second);
-      ++it;
-    }
-#else
     //CK - avoiding a temp copy here with some careful permutations
     size_t sz = lmd.size();
     std::vector<int> reord(sz); //map of dest index to source index
@@ -118,7 +97,6 @@ class SortEigen {
       curloc[src_vidx] = dest_loc;
       curloc[cur_vidx] = src_loc;
     }
-#endif
   }
   void push(std::vector<RealD>& lmd,int N) {
     std::partial_sort(lmd.begin(),lmd.begin()+N,lmd.end(),less_lmd);
@@ -155,6 +133,9 @@ private:
   int Nconv_test_interval; // Number of skipped vectors when checking a convergence
   RealD eresid;
   IRBLdiagonalisation diagonalisation;
+  
+  int rbl_rotate_block_size; //Size of blocking in final rotation for restarted block implementation
+
   ////////////////////////////////////
   // Embedded objects
   ////////////////////////////////////
@@ -204,8 +185,14 @@ public:
       //eresid(_eresid),  MaxIter(10),
       eresid(_eresid),  MaxIter(_MaxIter),
       diagonalisation(_diagonalisation),split_test(0),
-      Nevec_acc(_Nu), _innerProdImpl(innerProdImpl) 
+   Nevec_acc(_Nu), _innerProdImpl(innerProdImpl),
+   rbl_rotate_block_size(20)
   { assert( (Nk%Nu==0) && (Nm%Nu==0) ); };
+
+  //Set the block size of vectors used in the final-stage rotation in the RBL implementation
+  void setRBLrotateBlockSize(const int to){
+    rbl_rotate_block_size = to;
+  }
 
   ////////////////////////////////
   // Helpers
@@ -769,28 +756,42 @@ cudaStat = cudaMallocManaged((void **)&evec_acc, Nevec_acc*sites*12*sizeof(CUDA_
       Glog << fname + " CONVERGED ; Summary :\n";
       // Sort convered eigenpairs.
       std::vector<Field>  Btmp(Nstop,grid); // waste of space replicating
+      int iblock_sz = this->rbl_rotate_block_size;
+      Glog << "Rotating evecs with block size " << iblock_sz << std::endl;
+      int niblock = (Nstop + iblock_sz - 1) / iblock_sz;
+      for(int iblock = 0; iblock < niblock; iblock++){
+	int istart = iblock * iblock_sz;
+	int ilessthan = std::min(istart + iblock_sz, Nstop);
 
-      for(int i=0; i<Nstop; ++i){
-	  Btmp[i]=0.;
-          for(int k = 0; k<Nr; ++k){
-             Btmp[i].Checkerboard() = evec[k].Checkerboard();
-             Btmp[i] += evec[k]*Qt(k,i);
-          }
-          _Linop.HermOp(Btmp[i],v);
-          RealD vnum = real(_innerProdImpl.innerProduct(Btmp[i],v)); // HermOp.
-          RealD vden = _innerProdImpl.norm2(Btmp[i]);
-//          eval2[j] = vnum/vden;
-          v -= vnum/vden*Btmp[i];
-          RealD vv = _innerProdImpl.norm2(v);
-//          resid[j] = vv;
-          
-          std::cout.precision(13);
-          Glog << "[" << std::setw(4)<< std::setiosflags(std::ios_base::right) <<i<<"] ";
-          std::cout << "eval = "<<std::setw(20)<< std::setiosflags(std::ios_base::left)<< vnum/vden;
-          std::cout << "   resid^2 = "<< std::setw(20)<< std::setiosflags(std::ios_base::right)<< vv<< std::endl;
-        eval[i] = vnum/vden;
+	for(int i=istart;i<ilessthan;i++){
+	  Btmp[i] = 0.;
+	  Btmp[i].Checkerboard() = evec[0].Checkerboard();
+	}
+
+	for(int k = 0; k<Nr; ++k){
+	  for(int i=istart;i<ilessthan;i++){
+	    Btmp[i] += evec[k]*Qt(k,i);
+	  }
+	}
       }
-      for(int i=0; i<Nstop; ++i) evec[i] = Btmp[i];
+      for(int i=0; i<Nstop; ++i)
+	evec[i] = Btmp[i];
+
+      //Get evals and check residuals
+      Glog << "Getting evals and checking residuals" << std::endl;
+      for(int i=0; i<Nstop; ++i){
+	_Linop.HermOp(evec[i],v);
+	RealD vnum = real(_innerProdImpl.innerProduct(evec[i],v)); // HermOp.
+	RealD vden = _innerProdImpl.norm2(evec[i]);
+	v -= vnum/vden*evec[i];
+	RealD vv = _innerProdImpl.norm2(v);
+	
+	std::cout.precision(13);
+	Glog << "[" << std::setw(4)<< std::setiosflags(std::ios_base::right) <<i<<"] ";
+	std::cout << "eval = "<<std::setw(20)<< std::setiosflags(std::ios_base::left)<< vnum/vden;
+	std::cout << "   resid^2 = "<< std::setw(20)<< std::setiosflags(std::ios_base::right)<< vv<< std::endl;
+	eval[i] = vnum/vden;
+      }
       eval.resize(Nstop);
       evec.resize(Nstop,grid);
       Glog << "Sorting eigenvectors" << std::endl;
