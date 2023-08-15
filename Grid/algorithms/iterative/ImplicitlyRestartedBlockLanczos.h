@@ -759,7 +759,7 @@ cudaStat = cudaMallocManaged((void **)&evec_acc, Nevec_acc*sites*12*sizeof(CUDA_
 //          resid[j] = vv;
           
           std::cout.precision(13);
-          std::cout << "[" << std::setw(4)<< std::setiosflags(std::ios_base::right) <<i<<"] ";
+          Glog << "[" << std::setw(4)<< std::setiosflags(std::ios_base::right) <<i<<"] ";
           std::cout << "eval = "<<std::setw(20)<< std::setiosflags(std::ios_base::left)<< vnum/vden;
           std::cout << "   resid^2 = "<< std::setw(20)<< std::setiosflags(std::ios_base::right)<< vv<< std::endl;
         eval[i] = vnum/vden;
@@ -767,6 +767,7 @@ cudaStat = cudaMallocManaged((void **)&evec_acc, Nevec_acc*sites*12*sizeof(CUDA_
       for(int i=0; i<Nstop; ++i) evec[i] = Btmp[i];
       eval.resize(Nstop);
       evec.resize(Nstop,grid);
+      Glog << "Sorting eigenvectors" << std::endl;
       _sort.push(eval,evec,Nstop);
     }
     Glog << std::string(74,'*') << std::endl;
