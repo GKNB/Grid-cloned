@@ -283,8 +283,25 @@ inline ComplexD rankInnerProduct(const Lattice<vobj> &left,const Lattice<vobj> &
 template<class vobj>
 inline ComplexD innerProduct(const Lattice<vobj> &left,const Lattice<vobj> &right) {
   GridBase *grid = left.Grid();
+  std::cout << GridLogMessage << "TW: innerProduct, start rank local inner product " << std::endl;
   ComplexD nrm = rankInnerProduct(left,right);
+  std::cout << GridLogMessage << "TW: innerProduct, start global sum " << std::endl;
   grid->GlobalSum(nrm);
+  std::cout << GridLogMessage << "TW: innerProduct, end " << std::endl;
+  return nrm;
+}
+
+template<class vobj>
+inline std::vector<ComplexD> innerProductScalarVector(const Lattice<vobj> &left,const std::vector<Lattice<vobj> > &right) {
+  int sz = right.size();
+  std::vector<ComplexD> nrm(sz);
+  GridBase *grid = left.Grid();
+  std::cout << GridLogMessage << "TW: innerProductScalarVector, start rank local inner product " << std::endl;
+  for(int i=0; i<sz; i++)
+    nrm[i] = rankInnerProduct(left,right[i]);
+  std::cout << GridLogMessage << "TW: innerProductScalarVector, start global sum " << std::endl;
+  grid->GlobalSumVector(nrm.data(), nrm.size());
+  std::cout << GridLogMessage << "TW: innerProductScalarVector, end " << std::endl;
   return nrm;
 }
 

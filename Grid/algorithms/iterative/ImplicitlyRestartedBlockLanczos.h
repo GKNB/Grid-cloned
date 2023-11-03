@@ -205,6 +205,7 @@ public:
     return nn;
   }
   
+  //TW: type 1 orthogonalize 
   void orthogonalize(Field& w, std::vector<Field>& evec, int k, int if_print=0)
   {
     typedef typename Field::scalar_type MyComplex;
@@ -212,11 +213,14 @@ public:
     ComplexD ip;
     
     for(int j=0; j<k; ++j){
+      Glog << "TW: type 1 orthogonalize, start, j = " << j << std::endl;
       ip = _innerProdImpl.innerProduct(evec[j],w); 
+      Glog << "TW: type 1 orthogonalize, after innerProduct, j = " << j << std::endl;
       if(if_print) 
       if( norm(ip)/_innerProdImpl.norm2(w) > 1e-14)
       Glog<<"orthogonalize before: "<<j<<" of "<<k<<" "<< ip <<std::endl;
       w = w - ip * evec[j];
+      Glog << "TW: type 1 orthogonalize, after subtraction, j = " << j << std::endl;
       if(if_print) {
         ip = _innerProdImpl.innerProduct(evec[j],w); 
         if( norm(ip)/_innerProdImpl.norm2(w) > 1e-14)
@@ -230,6 +234,7 @@ public:
      orthogonalize(w, evec, k,1);
   }
 
+  //TW: type 2 orthogonalize
   void orthogonalize(std::vector<Field>& w, int _Nu, std::vector<Field>& evec, int k, int if_print=0)
   {
     typedef typename Field::scalar_type MyComplex;
@@ -238,9 +243,32 @@ public:
     
     for(int j=0; j<k; ++j){
     for(int i=0; i<_Nu; ++i){
+      Glog << "TW: type 2 orthogonalize, start, j = " << j << " i = " << i << std::endl;
       ip = _innerProdImpl.innerProduct(evec[j],w[i]); 
+      Glog << "TW: type 2 orthogonalize, after innerProduct, j = " << j << " i = " << i << std::endl;
       w[i] = w[i] - ip * evec[j];
+      Glog << "TW: type 2 orthogonalize, after subtraction, j = " << j << " i = " << i << std::endl;
     }}
+    for(int i=0; i<_Nu; ++i)
+    assert(normalize(w[i],if_print) !=0);
+  }
+
+  void orthogonalize_v2(std::vector<Field>& w, int _Nu, std::vector<Field>& evec, int k, int if_print=0)
+  {
+    typedef typename Field::scalar_type MyComplex;
+    std::vector<MyComplex> ip;
+    
+    for(int j=0; j<k; ++j)
+    {
+      Glog << "TW: type 2 orthogonalize, start, j = " << j << std::endl;
+      ip = _innerProdImpl.innerProductScalarVector(evec[j],w); 
+      Glog << "TW: type 2 orthogonalize, after innerProductScalarVector, j = " << j << std::endl;
+      for(int i=0; i<_Nu; ++i)
+      {
+        w[i] = w[i] - ip[i] * evec[j];
+      }
+      Glog << "TW: type 2 orthogonalize, after subtraction, j = " << j << std::endl;
+    }
     for(int i=0; i<_Nu; ++i)
     assert(normalize(w[i],if_print) !=0);
   }
@@ -916,13 +944,15 @@ if(split_test){
     // re-orthogonalization for numerical stability
 #if 1
     Glog << "Gram Schmidt"<< std::endl;
-    orthogonalize(w,Nu,evec,R);
+//    orthogonalize(w,Nu,evec,R);
+    orthogonalize_v2(w,Nu,evec,R);	//FIXME: TW: Here I am using different algorithm for doing innerProduct
 #else
     Glog << "Gram Schmidt using cublas"<< std::endl;
     orthogonalize_blas(w,evec,R);
 #endif
     // QR part
     for (int u=1; u<Nu; ++u) {
+      Glog << "TW: Gram Schmidt QR part "<< u << std::endl;
       orthogonalize(w[u],w,u);
     }
     Glog << "Gram Schmidt done "<< std::endl;

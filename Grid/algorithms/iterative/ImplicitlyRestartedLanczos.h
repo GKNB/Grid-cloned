@@ -46,6 +46,7 @@ template<typename Field>
 class innerProductImplementation{
 public:
   virtual ComplexD innerProduct(const Field &a, const Field &b){ return Grid::innerProduct(a,b); }
+  virtual std::vector<ComplexD> innerProductScalarVector(const Field &a, const std::vector<Field> &b){ return Grid::innerProductScalarVector(a,b); }
   virtual RealD norm2(const Field &a){ return Grid::norm2(a); }
   virtual void basisOrthogonalize(std::vector<Field> &basis,Field &w,int k){ Grid::basisOrthogonalize(basis,w,k); }
   
@@ -58,6 +59,13 @@ template<typename Field>
 class innerProductImplementationXconjugate : public innerProductImplementation<Field>{
 public:
   ComplexD innerProduct(const Field &a, const Field &b) override{ return 2.*real(Grid::innerProduct(a,b)); }
+  std::vector<ComplexD> innerProductScalarVector(const Field &a, const std::vector<Field> &b) override
+  { 
+    std::vector<ComplexD> res = Grid::innerProductScalarVector(a,b);
+    std::transform(res.begin(), res.end(), res.begin(), 
+		   [](const ComplexD &val){ return 2.*real(val); });
+    return res;
+  }
   RealD norm2(const Field &a) override{ return 2.*real(Grid::innerProduct(a,a)); }
   void basisOrthogonalize(std::vector<Field> &basis,Field &w,int k) override{ 
     for(int j=0; j<k; ++j){
