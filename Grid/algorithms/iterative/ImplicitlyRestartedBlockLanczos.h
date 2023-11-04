@@ -256,7 +256,7 @@ public:
   void orthogonalize_v2(std::vector<Field>& w, int _Nu, std::vector<Field>& evec, int k, int if_print=0)
   {
     typedef typename Field::scalar_type MyComplex;
-    std::vector<MyComplex> ip;
+    std::vector<ComplexD> ip;	//It should be type vector<ComplexD> instead of vector<MyComplex>, since innerProduct always return ComplexD type
     
     for(int j=0; j<k; ++j)
     {
@@ -265,7 +265,7 @@ public:
       Glog << "TW: type 2 orthogonalize, after innerProductScalarVector, j = " << j << std::endl;
       for(int i=0; i<_Nu; ++i)
       {
-        w[i] = w[i] - ip[i] * evec[j];
+        w[i] = w[i] - static_cast<MyComplex>(ip[i]) * evec[j];	//Use MyComplex type here
       }
       Glog << "TW: type 2 orthogonalize, after subtraction, j = " << j << std::endl;
     }
