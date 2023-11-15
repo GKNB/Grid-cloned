@@ -225,11 +225,17 @@ class SchurOperatorBase :  public LinearOperatorBase<Field> {
     MpcDag(tmp,out);
   }
   virtual void HermOpAndNorm(const Field &in, Field &out,RealD &n1,RealD &n2){
+    std::cout << GridLogMessage << "TW: Calling HermOpAndNorm inside SchurOperatorBase, start "<<std::endl;	  
     out.Checkerboard() = in.Checkerboard();
+    std::cout << GridLogMessage << "TW: Calling HermOpAndNorm inside SchurOperatorBase, after setting Checkerboard() "<<std::endl;	  
     MpcDagMpc(in,out);
+    std::cout << GridLogMessage << "TW: Calling HermOpAndNorm inside SchurOperatorBase, after MpcDagMpc "<<std::endl;	  
     ComplexD dot= innerProduct(in,out); 
+    std::cout << GridLogMessage << "TW: Calling HermOpAndNorm inside SchurOperatorBase, after innerProduct "<<std::endl;	  
     n1=real(dot);
+    std::cout << GridLogMessage << "TW: Calling HermOpAndNorm inside SchurOperatorBase, after get real "<<std::endl;	  
     n2=norm2(out);
+    std::cout << GridLogMessage << "TW: Calling HermOpAndNorm inside SchurOperatorBase, after get norm2 "<<std::endl;	  
   }
   virtual void HermOp(const Field &in, Field &out){
     out.Checkerboard() = in.Checkerboard();
@@ -258,23 +264,37 @@ template<class Matrix,class Field>
     Matrix &_Mat;
     SchurDiagMooeeOperator (Matrix &Mat): _Mat(Mat){};
     virtual  void Mpc      (const Field &in, Field &out) {
+      std::cout << GridLogMessage << "TW: Calling Mpc inside SchurDiagMooeeOperator, start "<<std::endl;	  
       Field tmp(in.Grid());
+      std::cout << GridLogMessage << "TW: Calling Mpc inside SchurDiagMooeeOperator, after create tmp field "<<std::endl;	  
       tmp.Checkerboard() = !in.Checkerboard();
       
       _Mat.Meooe(in,tmp);
+      std::cout << GridLogMessage << "TW: Calling Mpc inside SchurDiagMooeeOperator, after _Mat.Meooe(in,tmp) "<<std::endl;	  
       _Mat.MooeeInv(tmp,out);
+      std::cout << GridLogMessage << "TW: Calling Mpc inside SchurDiagMooeeOperator, after _Mat.MooeeInv(tmp,out) "<<std::endl;	  
       _Mat.Meooe(out,tmp);
+      std::cout << GridLogMessage << "TW: Calling Mpc inside SchurDiagMooeeOperator, after _Mat.Meooe(out,tmp) "<<std::endl;	  
       _Mat.Mooee(in,out);
+      std::cout << GridLogMessage << "TW: Calling Mpc inside SchurDiagMooeeOperator, after _Mat.Mooee(in,out) "<<std::endl;	  
       axpy(out,-1.0,tmp,out);
+      std::cout << GridLogMessage << "TW: Calling Mpc inside SchurDiagMooeeOperator, after axpy(out,-1.0,tmp,out) "<<std::endl;	  
     }
     virtual void MpcDag   (const Field &in, Field &out){
+      std::cout << GridLogMessage << "TW: Calling MpcDag inside SchurDiagMooeeOperator, start "<<std::endl;	  
       Field tmp(in.Grid());
+      std::cout << GridLogMessage << "TW: Calling MpcDag inside SchurDiagMooeeOperator, after create tmp field "<<std::endl;
 	
       _Mat.MeooeDag(in,tmp);
+      std::cout << GridLogMessage << "TW: Calling MpcDag inside SchurDiagMooeeOperator, after _Mat.MeooeDag(in,tmp) "<<std::endl;
       _Mat.MooeeInvDag(tmp,out);
+      std::cout << GridLogMessage << "TW: Calling MpcDag inside SchurDiagMooeeOperator, after _Mat.MooeeInvDag(tmp,out) "<<std::endl;
       _Mat.MeooeDag(out,tmp);
+      std::cout << GridLogMessage << "TW: Calling MpcDag inside SchurDiagMooeeOperator, after _Mat.MeooeDag(out,tmp) "<<std::endl;
       _Mat.MooeeDag(in,out);
+      std::cout << GridLogMessage << "TW: Calling MpcDag inside SchurDiagMooeeOperator, after _Mat.MooeeDag(in,out) "<<std::endl;
       axpy(out,-1.0,tmp,out);
+      std::cout << GridLogMessage << "TW: Calling MpcDag inside SchurDiagMooeeOperator, after axpy(out,-1.0,tmp,out) "<<std::endl;
     }
 };
 template<class Matrix,class Field>

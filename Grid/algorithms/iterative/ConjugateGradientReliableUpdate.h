@@ -148,9 +148,13 @@ public:
     for (k = 1; k <= MaxIterations; k++) {
       c = cp;
 
+      std::cout << GridLogIterative << "TW: ConjugateGradientReliableUpdate: Iteration " << k << " before Linop_f_use->HermOpAndNorm(p_f, mmp_f, d, qq)" << std::endl;
+
       MatrixTimer.Start();
       Linop_f_use->HermOpAndNorm(p_f, mmp_f, d, qq);
       MatrixTimer.Stop();
+      
+      std::cout << GridLogIterative << "TW: ConjugateGradientReliableUpdate: Iteration " << k << " after Linop_f_use->HermOpAndNorm(p_f, mmp_f, d, qq)" << std::endl;
 
       LinalgTimer.Start();
 

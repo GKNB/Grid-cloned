@@ -260,14 +260,35 @@ public:
     
     for(int j=0; j<k; ++j)
     {
-      Glog << "TW: type 2 orthogonalize, start, j = " << j << std::endl;
+      Glog << "TW: type 2 orthogonalize_v2, start, j = " << j << std::endl;
       ip = _innerProdImpl.innerProductScalarVector(evec[j],w); 
-      Glog << "TW: type 2 orthogonalize, after innerProductScalarVector, j = " << j << std::endl;
+      Glog << "TW: type 2 orthogonalize_v2, after innerProductScalarVector, j = " << j << std::endl;
       for(int i=0; i<_Nu; ++i)
       {
         w[i] = w[i] - static_cast<MyComplex>(ip[i]) * evec[j];	//Use MyComplex type here
       }
-      Glog << "TW: type 2 orthogonalize, after subtraction, j = " << j << std::endl;
+      Glog << "TW: type 2 orthogonalize_v2, after subtraction, j = " << j << std::endl;
+    }
+    for(int i=0; i<_Nu; ++i)
+    assert(normalize(w[i],if_print) !=0);
+  }
+
+  //In this version, order of i and j loop is switched
+  void orthogonalize_v3(std::vector<Field>& w, int _Nu, std::vector<Field>& evec, int k, int if_print=0)
+  {
+    typedef typename Field::scalar_type MyComplex;
+    std::vector<ComplexD> ip;   //It should be type vector<ComplexD> instead of vector<MyComplex>, since innerProduct always return ComplexD type
+    
+    for(int i=0; i<_Nu; ++i)
+    {
+      Glog << "TW: type 2 orthogonalize_v3, start, i = " << i << std::endl;
+      ip = _innerProdImpl.innerProductScalarVector(w[i], evec);
+      Glog << "TW: type 2 orthogonalize_v3, after innerProductScalarVector, i = " << i << std::endl;
+      for(int j=0; j<k; ++j)
+      {
+        w[i] = w[i] - static_cast<MyComplex>(ip[j]) * evec[j];	//Use MyComplex type here
+      }
+      Glog << "TW: type 2 orthogonalize_v3, after subtraction, i = " << i << std::endl;
     }
     for(int i=0; i<_Nu; ++i)
     assert(normalize(w[i],if_print) !=0);
@@ -946,6 +967,7 @@ if(split_test){
     Glog << "Gram Schmidt"<< std::endl;
 //    orthogonalize(w,Nu,evec,R);
     orthogonalize_v2(w,Nu,evec,R);	//FIXME: TW: Here I am using different algorithm for doing innerProduct
+//    orthogonalize_v3(w,Nu,evec,R);	//FIXME: TW: Here I am using different algorithm for doing innerProduct
 #else
     Glog << "Gram Schmidt using cublas"<< std::endl;
     orthogonalize_blas(w,evec,R);

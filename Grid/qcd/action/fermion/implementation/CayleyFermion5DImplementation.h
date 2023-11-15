@@ -307,13 +307,16 @@ void CayleyFermion5D<Impl>::Mdag (const FermionField &psi, FermionField &chi)
 template<class Impl>
 void CayleyFermion5D<Impl>::Meooe       (const FermionField &psi, FermionField &chi)
 {
+  std::cout << GridLogMessage << "TW: Calling CayleyFermion5D<Impl>::Meooe, start "<<std::endl;	
   Meooe5D(psi,this->tmp()); 
+  std::cout << GridLogMessage << "TW: Calling CayleyFermion5D<Impl>::Meooe, after Meooe5D(psi,this->tmp()) "<<std::endl;	
 
   if ( psi.Checkerboard() == Odd ) {
     this->DhopEO(this->tmp(),chi,DaggerNo);
   } else {
     this->DhopOE(this->tmp(),chi,DaggerNo);
   }
+  std::cout << GridLogMessage << "TW: Calling CayleyFermion5D<Impl>::Meooe, after DhopEO/DhopOE "<<std::endl;
 }
 
 template<class Impl>
