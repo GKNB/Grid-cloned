@@ -216,9 +216,11 @@ public:
       Glog << "TW: type 1 orthogonalize, start, j = " << j << std::endl;
       ip = _innerProdImpl.innerProduct(evec[j],w); 
       Glog << "TW: type 1 orthogonalize, after innerProduct, j = " << j << std::endl;
-      if(if_print) 
-      if( norm(ip)/_innerProdImpl.norm2(w) > 1e-14)
-      Glog<<"orthogonalize before: "<<j<<" of "<<k<<" "<< ip <<std::endl;
+      if(if_print)
+      { 
+        if( norm(ip)/_innerProdImpl.norm2(w) > 1e-14)
+          Glog<<"orthogonalize before: "<<j<<" of "<<k<<" "<< ip <<std::endl;
+      }
       w = w - ip * evec[j];
       Glog << "TW: type 1 orthogonalize, after subtraction, j = " << j << std::endl;
       if(if_print) {
