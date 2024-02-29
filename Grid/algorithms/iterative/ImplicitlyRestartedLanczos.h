@@ -48,6 +48,7 @@ public:
   virtual ComplexD innerProduct(const Field &a, const Field &b){ return Grid::innerProduct(a,b); }
   virtual std::vector<ComplexD> innerProductScalarVector(const Field &a, const std::vector<Field> &b){ return Grid::innerProductScalarVector(a,b); }
   virtual RealD norm2(const Field &a){ return Grid::norm2(a); }
+  virtual RealD norm2Debug(const Field &a){ return Grid::norm2Debug(a); }
   virtual void basisOrthogonalize(std::vector<Field> &basis,Field &w,int k){ Grid::basisOrthogonalize(basis,w,k); }
   
   //The default implementation
@@ -67,6 +68,7 @@ public:
     return res;
   }
   RealD norm2(const Field &a) override{ return 2.*real(Grid::innerProduct(a,a)); }
+  RealD norm2Debug(const Field &a) override{ return 2.*real(Grid::innerProductDebug(a,a)); }
   void basisOrthogonalize(std::vector<Field> &basis,Field &w,int k) override{ 
     for(int j=0; j<k; ++j){
       auto ip = this->innerProduct(basis[j],w);

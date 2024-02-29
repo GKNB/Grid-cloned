@@ -199,12 +199,16 @@ public:
   ////////////////////////////////
   RealD normalize(Field& v, int if_print=0)
   {
-    RealD nn = _innerProdImpl.norm2(v);
+    RealD nn;
+    if(if_print)
+      nn = _innerProdImpl.norm2Debug(v);
+    else
+      nn = _innerProdImpl.norm2(v);
     nn = sqrt(nn);
     v = v * (1.0/nn);
     return nn;
   }
-  
+
   //TW: type 1 orthogonalize 
   void orthogonalize(Field& w, std::vector<Field>& evec, int k, int if_print=0)
   {

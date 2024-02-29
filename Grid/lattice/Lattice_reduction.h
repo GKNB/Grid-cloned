@@ -203,6 +203,11 @@ template<class vobj> inline RealD norm2(const Lattice<vobj> &arg){
   return real(nrm); 
 }
 
+template<class vobj> inline RealD norm2Debug(const Lattice<vobj> &arg){
+  ComplexD nrm = innerProductDebug(arg,arg);
+  return real(nrm); 
+}
+
 //The global maximum of the site norm2
 template<class vobj> inline RealD maxLocalNorm2(const Lattice<vobj> &arg)
 {
@@ -285,6 +290,27 @@ inline ComplexD innerProduct(const Lattice<vobj> &left,const Lattice<vobj> &righ
   GridBase *grid = left.Grid();
 //  std::cout << GridLogMessage << "TW: innerProduct, start rank local inner product " << std::endl;
   ComplexD nrm = rankInnerProduct(left,right);
+//  std::cout << GridLogMessage << "TW: innerProduct, start global sum " << std::endl;
+  grid->GlobalSum(nrm);
+//  std::cout << GridLogMessage << "TW: innerProduct, end " << std::endl;
+  return nrm;
+}
+
+template<class vobj>
+inline ComplexD innerProductDebug(const Lattice<vobj> &left,const Lattice<vobj> &right) {
+  GridBase *grid = left.Grid();
+//  std::cout << GridLogMessage << "TW: innerProduct, start rank local inner product " << std::endl;
+  ComplexD nrm = rankInnerProduct(left,right);
+
+  int me = 0;
+#if defined(GRID_COMMS_MPI) || defined(GRID_COMMS_MPI3) || defined(GRID_COMMS_MPIT)
+  MPI_Comm_rank(MPI_COMM_WORLD, &me);
+#endif
+#ifdef GRID_COMMS_SHMEM
+  me = shmem_my_pe();
+#endif
+  printf("In innerProductDebug, rank %d, nrm.real = %f, nrm.imag = %f", me, real(nrm), imag(nrm));
+
 //  std::cout << GridLogMessage << "TW: innerProduct, start global sum " << std::endl;
   grid->GlobalSum(nrm);
 //  std::cout << GridLogMessage << "TW: innerProduct, end " << std::endl;
