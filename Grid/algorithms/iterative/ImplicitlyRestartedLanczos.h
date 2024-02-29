@@ -46,7 +46,7 @@ template<typename Field>
 class innerProductImplementation{
 public:
   virtual ComplexD innerProduct(const Field &a, const Field &b){ return Grid::innerProduct(a,b); }
-  virtual std::vector<ComplexD> innerProductScalarVector(const Field &a, const std::vector<Field> &b){ return Grid::innerProductScalarVector(a,b); }
+  virtual std::vector<ComplexD> innerProductScalarWithBatchScalar(const Field &a, const std::vector<Field> &b){ return Grid::innerProductScalarWithBatchScalar(a,b); }
   virtual RealD norm2(const Field &a){ return Grid::norm2(a); }
   virtual RealD norm2Debug(const Field &a){ return Grid::norm2Debug(a); }
   virtual void basisOrthogonalize(std::vector<Field> &basis,Field &w,int k){ Grid::basisOrthogonalize(basis,w,k); }
@@ -60,9 +60,9 @@ template<typename Field>
 class innerProductImplementationXconjugate : public innerProductImplementation<Field>{
 public:
   ComplexD innerProduct(const Field &a, const Field &b) override{ return 2.*real(Grid::innerProduct(a,b)); }
-  std::vector<ComplexD> innerProductScalarVector(const Field &a, const std::vector<Field> &b) override
+  std::vector<ComplexD> innerProductScalarWithBatchScalar(const Field &a, const std::vector<Field> &b) override
   { 
-    std::vector<ComplexD> res = Grid::innerProductScalarVector(a,b);
+    std::vector<ComplexD> res = Grid::innerProductScalarWithBatchScalar(a,b);
     std::transform(res.begin(), res.end(), res.begin(), 
 		   [](const ComplexD &val){ return 2.*real(val); });
     return res;

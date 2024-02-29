@@ -217,16 +217,12 @@ public:
     ComplexD ip;
     
     for(int j=0; j<k; ++j){
-      Glog << "TW: type 1 orthogonalize, start, j = " << j << std::endl;
       ip = _innerProdImpl.innerProduct(evec[j],w); 
-      Glog << "TW: type 1 orthogonalize, after innerProduct, j = " << j << std::endl;
       if(if_print)
       { 
         if( norm(ip)/_innerProdImpl.norm2(w) > 1e-14)
-          Glog<<"orthogonalize before: "<<j<<" of "<<k<<" "<< ip <<std::endl;
       }
       w = w - ip * evec[j];
-      Glog << "TW: type 1 orthogonalize, after subtraction, j = " << j << std::endl;
       if(if_print) {
         ip = _innerProdImpl.innerProduct(evec[j],w); 
         if( norm(ip)/_innerProdImpl.norm2(w) > 1e-14)
@@ -249,11 +245,8 @@ public:
     
     for(int j=0; j<k; ++j){
     for(int i=0; i<_Nu; ++i){
-      Glog << "TW: type 2 orthogonalize, start, j = " << j << " i = " << i << std::endl;
       ip = _innerProdImpl.innerProduct(evec[j],w[i]); 
-      Glog << "TW: type 2 orthogonalize, after innerProduct, j = " << j << " i = " << i << std::endl;
       w[i] = w[i] - ip * evec[j];
-      Glog << "TW: type 2 orthogonalize, after subtraction, j = " << j << " i = " << i << std::endl;
     }}
     for(int i=0; i<_Nu; ++i)
     assert(normalize(w[i],if_print) !=0);
@@ -266,14 +259,11 @@ public:
     
     for(int j=0; j<k; ++j)
     {
-      Glog << "TW: type 2 orthogonalize_v2, start, j = " << j << std::endl;
-      ip = _innerProdImpl.innerProductScalarVector(evec[j],w); 
-      Glog << "TW: type 2 orthogonalize_v2, after innerProductScalarVector, j = " << j << std::endl;
+      ip = _innerProdImpl.innerProductScalarWithBatchScalar(evec[j],w); 
       for(int i=0; i<_Nu; ++i)
       {
         w[i] = w[i] - static_cast<MyComplex>(ip[i]) * evec[j];	//Use MyComplex type here
       }
-      Glog << "TW: type 2 orthogonalize_v2, after subtraction, j = " << j << std::endl;
     }
     for(int i=0; i<_Nu; ++i)
     assert(normalize(w[i],if_print) !=0);
@@ -287,14 +277,11 @@ public:
     
     for(int i=0; i<_Nu; ++i)
     {
-      Glog << "TW: type 2 orthogonalize_v3, start, i = " << i << std::endl;
-      ip = _innerProdImpl.innerProductScalarVector(w[i], evec);
-      Glog << "TW: type 2 orthogonalize_v3, after innerProductScalarVector, i = " << i << std::endl;
+      ip = _innerProdImpl.innerProductScalarWithBatchScalar(w[i], evec);
       for(int j=0; j<k; ++j)
       {
         w[i] = w[i] - static_cast<MyComplex>(ip[j]) * evec[j];	//Use MyComplex type here
       }
-      Glog << "TW: type 2 orthogonalize_v3, after subtraction, i = " << i << std::endl;
     }
     for(int i=0; i<_Nu; ++i)
     assert(normalize(w[i],if_print) !=0);
@@ -980,7 +967,6 @@ if(split_test){
 #endif
     // QR part
     for (int u=1; u<Nu; ++u) {
-      Glog << "TW: Gram Schmidt QR part "<< u << std::endl;
       orthogonalize(w[u],w,u);
     }
     Glog << "Gram Schmidt done "<< std::endl;
